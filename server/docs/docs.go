@@ -380,7 +380,10 @@ const docTemplate = `{
         "models.EncryptedMessage": {
             "type": "object",
             "properties": {
-                "content": {
+                "c1": {
+                    "type": "string"
+                },
+                "c2": {
                     "type": "string"
                 }
             }
