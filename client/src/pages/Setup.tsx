@@ -33,26 +33,21 @@ export default function Setup({ onSetupComplete, setEncryptionLog }: SetupProps)
 
   const handleConnect = async () => {
     if (userId && keys) {
+      console.log("Conectando ao servidor...");
       await connectToServer(userId, keys.publicKey);
-      setEncryptionLog(prev => [...prev, {
-        type: 'connect',
-        content: `Conectado ao servidor como ${userId}`,
-        details: JSON.stringify(keys.publicKey)
-      }]);
+      console.log("Conectado. Buscando usuários...");
       const users = await getUsers();
+      console.log("Usuários disponíveis:", users);
       setAvailableUsers(users.filter(id => id !== userId));
     }
   };
 
   const handleSelectPartner = async (selectedUserId: string) => {
+    console.log("Parceiro selecionado:", selectedUserId);
     setPartnerUserId(selectedUserId);
     if (keys) {
       const partnerPublicKey = await getPublicKey(selectedUserId);
-      setEncryptionLog(prev => [...prev, {
-        type: 'partner',
-        content: `Parceiro selecionado: ${selectedUserId}`,
-        details: JSON.stringify(partnerPublicKey)
-      }]);
+      console.log("Chave pública do parceiro:", partnerPublicKey);
       onSetupComplete(userId, keys, selectedUserId, partnerPublicKey);
     }
   };
@@ -92,9 +87,12 @@ export default function Setup({ onSetupComplete, setEncryptionLog }: SetupProps)
                 </SelectTrigger>
                 <SelectContent>
                   {availableUsers.map((user) => (
-                    <SelectItem key={user} value={user}>
-                      {user}
-                    </SelectItem>
+                    // Certifique-se de que 'user' não seja uma string vazia
+                    user && (
+                      <SelectItem key={user} value={user}>
+                        {user}
+                      </SelectItem>
+                    )
                   ))}
                 </SelectContent>
               </Select>

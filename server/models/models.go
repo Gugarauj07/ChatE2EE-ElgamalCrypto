@@ -5,7 +5,6 @@ type KeyPair struct {
 	PrivateKey int64 `json:"privateKey"`
 }
 
-type PublicKey int64
 
 type EncryptedMessage struct {
 	C1 string `json:"c1"`
@@ -18,6 +17,8 @@ type ChatMessage struct {
 }
 
 type User struct {
-	ID        string    `json:"id"`
+	UserId    string    `json:"userId"`
 	PublicKey PublicKey `json:"publicKey"`
 }
+
+type PublicKey int64

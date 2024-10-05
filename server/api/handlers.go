@@ -4,6 +4,9 @@ import (
 	"server/models"
 	"server/services"
 	"net/http"
+	"bytes"
+	"io/ioutil"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -63,13 +66,44 @@ func GenerateKeys(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Router /connect [post]
 func Connect(c *gin.Context) {
+	// Primeiro, vamos imprimir o corpo da requisição bruto
+	body, _ := ioutil.ReadAll(c.Request.Body)
+	log.Printf("Raw request body: %s", string(body))
+
+	// É importante restaurar o corpo da requisição para que possa ser lido novamente
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
+		log.Printf("Error binding JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	users[user.ID] = user
-	c.Status(http.StatusOK)
+
+	log.Printf("Parsed user data: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+
+	// Validação adicional
+	if user.UserId == "" || user.PublicKey == 0 {
+		log.Printf("Invalid user data: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
+		return
+	}
+
+	// Verifica se o usuário já existe
+	if _, exists := users[user.UserId]; exists {
+		log.Printf("User ID already exists: %s", user.UserId)
+		c.JSON(http.StatusConflict, gin.H{"error": "User ID already exists"})
+		return
+	}
+
+	// Salva o usuário (idealmente, isso seria feito em um banco de dados)
+	users[user.UserId] = user
+	log.Printf("User connected successfully: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User connected successfully",
+		"userId":  user.UserId,
+	})
 }
 
 // GetUsers godoc
@@ -191,4 +225,40 @@ func ReceiveMessages(c *gin.Context) {
 	userMessages := messages[req.UserId]
 	delete(messages, req.UserId) // Clear messages after sending
 	c.JSON(http.StatusOK, userMessages)
+}
+
+// Disconnect godoc
+// @Summary Desconecta um usuário do servidor
+// @Description Remove um usuário do servidor
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param userId body string true "ID do usuário"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /disconnect [post]
+func Disconnect(c *gin.Context) {
+	var req struct {
+		UserId string `json:"userId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if _, exists := users[req.UserId]; !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	delete(users, req.UserId)
+	delete(messages, req.UserId)
+
+	log.Printf("User disconnected: UserId='%s'", req.UserId)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User disconnected successfully",
+		"userId":  req.UserId,
+	})
 }

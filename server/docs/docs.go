@@ -101,6 +101,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/disconnect": {
+            "post": {
+                "description": "Remove um usuário do servidor",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Desconecta um usuário do servidor",
+                "parameters": [
+                    {
+                        "description": "ID do usuário",
+                        "name": "userId",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/encrypt": {
             "post": {
                 "description": "Encripta uma mensagem usando a chave pública fornecida",
@@ -402,11 +457,11 @@ const docTemplate = `{
         "models.User": {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string"
-                },
                 "publicKey": {
                     "type": "integer"
+                },
+                "userId": {
+                    "type": "string"
                 }
             }
         }

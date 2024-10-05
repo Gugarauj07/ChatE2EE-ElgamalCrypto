@@ -42,3 +42,17 @@ export const receiveMessages = async (userId: string, privateKey: number): Promi
   const response = await api.post<ChatMessage[]>('/receive-messages', { userId, privateKey });
   return response.data;
 };
+
+export async function disconnectUser(userId: string): Promise<void> {
+  const response = await fetch('http://localhost:3000/disconnect', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to disconnect user');
+  }
+}

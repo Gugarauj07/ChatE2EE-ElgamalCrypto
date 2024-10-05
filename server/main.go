@@ -2,7 +2,7 @@ package main
 
 import (
 	"server/api"
-	_ "server/docs" 
+	_ "server/docs"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -20,12 +20,13 @@ func main() {
 
 	// Configure CORS
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:5173"} // Ajuste conforme necessário
+	config.AllowOrigins = []string{"http://localhost:5173"} 
 	r.Use(cors.New(config))
 
 	// Rotas
 	r.GET("/generate-keys", api.GenerateKeys)
 	r.POST("/connect", api.Connect)
+	r.POST("/disconnect", api.Disconnect)
 	r.GET("/users", api.GetUsers)
 	r.GET("/public-key/:userId", api.GetPublicKey)
 	r.POST("/encrypt", api.EncryptMessage)

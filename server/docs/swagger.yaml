@@ -51,10 +51,10 @@ definitions:
     type: object
   models.User:
     properties:
-      id:
-        type: string
       publicKey:
         type: integer
+      userId:
+        type: string
     type: object
 host: localhost:3000
 info:
@@ -119,6 +119,42 @@ paths:
       summary: Decripta uma mensagem
       tags:
       - messages
+  /disconnect:
+    post:
+      consumes:
+      - application/json
+      description: Remove um usuário do servidor
+      parameters:
+      - description: ID do usuário
+        in: body
+        name: userId
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Desconecta um usuário do servidor
+      tags:
+      - users
   /encrypt:
     post:
       consumes:
