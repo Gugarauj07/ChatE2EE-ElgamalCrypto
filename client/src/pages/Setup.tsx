@@ -15,30 +15,49 @@ const Setup: React.FC = () => {
   const [users, setUsers] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const eg = new ElGamal();
-    setElgamal(eg);
+    try {
+      const eg = new ElGamal();
+      setElgamal(eg);
+    } catch (err) {
+      setError("Erro ao gerar chaves iniciais. Por favor, tente novamente.");
+      console.error(err);
+    }
   }, []);
 
   useEffect(() => {
-    const intervalId = setInterval(fetchUsers, 5000);
-    return () => clearInterval(intervalId);
+    if (connected) {
+      const intervalId = setInterval(fetchUsers, 5000);
+      return () => clearInterval(intervalId);
+    }
   }, [connected]);
 
   const handleGenerateKeys = () => {
-    const eg = new ElGamal();
-    setElgamal(eg);
-    setShowExplanation(true);
+    try {
+      const eg = new ElGamal();
+      setElgamal(eg);
+      setShowExplanation(true);
+      setError(null);
+    } catch (err) {
+      setError("Erro ao gerar novas chaves. Por favor, tente novamente.");
+      console.error(err);
+    }
   };
 
   const handleConnect = async () => {
     if (elgamal && username) {
       try {
-        await connectToServer(username, elgamal.publicKey);
+        await connectToServer(username, {
+          p: Number(elgamal.publicKey.p),
+          g: Number(elgamal.publicKey.g),
+          y: Number(elgamal.publicKey.y)
+        });
         setConnected(true);
         fetchUsers();
       } catch (error) {
+        setError("Erro ao conectar. Por favor, tente novamente.");
         console.error('Erro ao conectar:', error);
       }
     }
@@ -50,6 +69,7 @@ const Setup: React.FC = () => {
         const userList = await getUsers();
         setUsers(userList.filter(user => user !== username));
       } catch (error) {
+        setError("Erro ao obter usuários. Por favor, tente novamente.");
         console.error('Erro ao obter usuários:', error);
       }
     }
@@ -67,33 +87,42 @@ const Setup: React.FC = () => {
         setSelectedUser(null);
         setUsers([]);
       } catch (error) {
+        setError("Erro ao desconectar. Por favor, tente novamente.");
         console.error('Erro ao desconectar:', error);
       }
     }
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Card className="w-full max-w-2xl mx-auto shadow-lg border border-gray-300 bg-white rounded-lg">
+        <CardHeader className="bg-gray-800 text-white rounded-t-lg">
           <CardTitle>Configuração do Chat ElGamal</CardTitle>
           <CardDescription>Configure suas chaves e conecte-se ao chat</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           {!connected ? (
             <>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium">Chave Pública:</h3>
-                  <pre className="mt-2 p-2 bg-muted rounded-md overflow-x-auto">
-                    {elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
+                  <h3 className="text-lg font-semibold text-gray-700">Chave Pública:</h3>
+                  <pre className="mt-2 p-4 bg-gray-100 rounded-md overflow-x-auto text-sm text-gray-800">
+                    {elgamal
+                      ? `p: ${elgamal.publicKey.p}\ng: ${elgamal.publicKey.g}\ny: ${elgamal.publicKey.y}`
+                      : 'Gerando chaves...'}
                   </pre>
                 </div>
-                <Button onClick={handleGenerateKeys} className="w-full">
+                <Button onClick={handleGenerateKeys} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                   Gerar Novas Chaves
                 </Button>
                 {showExplanation && (
-                  <Alert>
+                  <Alert className="bg-gray-100 border border-gray-300 text-gray-700">
                     <AlertTitle>Processo de Geração de Chaves</AlertTitle>
                     <AlertDescription>
                       1. Gera um número primo grande 'p'<br />
@@ -108,53 +137,68 @@ const Setup: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Digite seu nome de usuário"
+                  className="border border-gray-300 focus:border-blue-600 focus:ring-blue-600"
                 />
-                <Button onClick={handleConnect} className="w-full">
+                <Button onClick={handleConnect} className="w-full bg-green-600 hover:bg-green-700 text-white">
                   Conectar
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Seu nome: <span className="font-bold">{username}</span></h3>
-                <h3 className="text-lg font-medium">Sua Chave Pública:</h3>
-                <pre className="mt-2 p-2 bg-muted rounded-md overflow-x-auto">
-                  {elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
-                </pre>
-                <h3 className="text-lg font-medium">Usuários Disponíveis:</h3>
-                <ScrollArea className="h-[200px] w-full rounded-md border">
-                  {users.map((user) => (
-                    <div
-                      key={user}
-                      className={`flex items-center p-2 hover:bg-accent cursor-pointer ${
-                        selectedUser === user ? 'bg-accent' : ''
-                      }`}
-                      onClick={() => handleSelectUser(user)}
-                    >
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://avatar.vercel.sh/${user}.png`} alt={user} />
-                        <AvatarFallback>{user[0]}</AvatarFallback>
-                      </Avatar>
-                      <span className="ml-2">{user}</span>
-                    </div>
-                  ))}
-                </ScrollArea>
-                {selectedUser && (
-                  <Alert>
-                    <AlertTitle>Usuário Selecionado</AlertTitle>
-                    <AlertDescription>
-                      Você selecionou: <strong>{selectedUser}</strong>
-                    </AlertDescription>
-                  </Alert>
-                )}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    Seu nome: <span className="font-bold text-gray-900">{username}</span>
+                  </h3>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Sua Chave Pública:</h3>
+                  <pre className="mt-2 p-4 bg-gray-100 rounded-md overflow-x-auto text-sm text-gray-800">
+                    {elgamal
+                      ? `p: ${elgamal.publicKey.p}\ng: ${elgamal.publicKey.g}\ny: ${elgamal.publicKey.y}`
+                      : ''}
+                  </pre>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Usuários Disponíveis:</h3>
+                  <ScrollArea className="h-60 w-full rounded-md border border-gray-300 mt-2">
+                    {users.length > 0 ? (
+                      users.map((user) => (
+                        <div
+                          key={user}
+                          className={`flex items-center p-3 hover:bg-gray-100 cursor-pointer ${
+                            selectedUser === user ? 'bg-blue-100' : ''
+                          }`}
+                          onClick={() => handleSelectUser(user)}
+                        >
+                          <Avatar className="h-10 w-10 bg-gray-200">
+                            <AvatarImage src={`https://avatar.vercel.sh/${user}.png`} alt={user} />
+                            <AvatarFallback>{user.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span className="ml-3 text-gray-800">{user}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 p-4">Nenhum usuário disponível no momento.</p>
+                    )}
+                  </ScrollArea>
+                  {selectedUser && (
+                    <Alert className="bg-green-100 border border-green-300 text-green-700 mt-4">
+                      <AlertTitle>Usuário Selecionado</AlertTitle>
+                      <AlertDescription>
+                        Você selecionou: <strong>{selectedUser}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               </div>
             </>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="p-6">
           {connected && (
-            <Button onClick={handleDisconnect} variant="destructive" className="w-full">
+            <Button onClick={handleDisconnect} variant="destructive" className="w-full bg-red-600 hover:bg-red-700 text-white">
               Desconectar
             </Button>
           )}
