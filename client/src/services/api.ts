@@ -18,9 +18,14 @@ export const sendMessage = async (encryptedMessage: EncryptedMessage, senderId: 
   await api.post('/send-message', { encryptedMessage, senderId, receiverId });
 };
 
-export const receiveMessages = async (userId: string, privateKey: number): Promise<ChatMessage[]> => {
-  const response = await api.post<ChatMessage[]>('/receive-messages', { userId, privateKey });
-  return response.data;
+export const receiveMessages = async (userId: string): Promise<ChatMessage[]> => {
+  try {
+    const response = await api.post<ChatMessage[]>('/receive-messages', { userId });
+    return response.data || []; // Retorna um array vazio se a resposta for nula
+  } catch (error) {
+    console.error('Erro ao receber mensagens:', error);
+    return []; // Retorna um array vazio em caso de erro
+  }
 };
 
 export async function disconnectUser(userId: string): Promise<void> {

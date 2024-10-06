@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-import { Search } from 'lucide-react'
+import { Search, MessageCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom' // Importando useNavigate
 import { LocationState } from '../types'; // Importando o tipo
 
@@ -124,9 +124,9 @@ const Setup: React.FC = () => {
     }
   };
 
-  const handleStartChat = () => {
-    if (selectedUser && elgamal) {
-      navigate('/chat', { state: { selectedUser, elgamal } as LocationState });
+  const handleStartChat = (user: string) => {
+    if (elgamal) {
+      navigate('/chat', { state: { selectedUser: user, elgamal } as LocationState });
     }
   };
 
@@ -220,25 +220,23 @@ const Setup: React.FC = () => {
                               <AvatarFallback>{user.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <span className="ml-3 text-gray-800">{user}</span>
+                            {selectedUser === user && (
+                              <div className="ml-auto">
+                                <Button
+                                  onClick={() => handleStartChat(user)}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  <MessageCircle className="mr-2 h-4 w-4" />
+                                  Iniciar Conversa
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))
                     ) : (
                       <p className="text-gray-500 p-4">Nenhum usuário encontrado.</p>
                     )}
                   </ScrollArea>
-                  {selectedUser && (
-                    <div className="flex justify-between items-center mt-4">
-                      <Alert className="bg-green-100 border border-green-300 text-green-700 flex-1 mr-4">
-                        <AlertTitle>Usuário Selecionado</AlertTitle>
-                        <AlertDescription>
-                          Você selecionou: <strong>{selectedUser}</strong>
-                        </AlertDescription>
-                      </Alert>
-                      <Button onClick={handleStartChat} className="bg-purple-600 hover:bg-purple-700 text-white">
-                        Iniciar Chat
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
             </>

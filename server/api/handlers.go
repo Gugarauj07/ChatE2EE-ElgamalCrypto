@@ -168,8 +168,16 @@ func ReceiveMessages(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	userMessages := messages[req.UserId]
-	delete(messages, req.UserId) // Clear messages after sending
+
+	usersMutex.Lock()
+	userMessages, exists := messages[req.UserId]
+	if !exists {
+		userMessages = []models.ChatMessage{} // Retorna um array vazio se não houver mensagens
+	} else {
+		delete(messages, req.UserId) // Limpa as mensagens após enviar
+	}
+	usersMutex.Unlock()
+
 	c.JSON(http.StatusOK, userMessages)
 }
 

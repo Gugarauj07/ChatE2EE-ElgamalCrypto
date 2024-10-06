@@ -63,20 +63,22 @@ const Chat: React.FC = () => {
 
   const fetchMessages = async () => {
     try {
-      const receivedMessages = await receiveMessages(elgamal.privateKey.x, elgamal.publicKey.p);
-      const decryptedMessages = receivedMessages.map((msg: any) => ({
-        sender: msg.senderId,
-        content: elgamal.decrypt(msg.encryptedMessage, elgamal.privateKey, elgamal.publicKey.p),
-      }));
-      setMessages((prev: any) => [...prev, ...decryptedMessages]);
+      const receivedMessages = await receiveMessages(elgamal.privateKey.x);
+      if (receivedMessages.length > 0) {
+        const decryptedMessages = receivedMessages.map((msg: any) => ({
+          sender: msg.senderId,
+          content: elgamal.decrypt(msg.encryptedMessage, elgamal.privateKey, elgamal.publicKey.p),
+        }));
+        setMessages((prev: any) => [...prev, ...decryptedMessages]);
+      }
     } catch (error) {
+      console.error('Erro ao receber mensagens:', error);
       toast({
         variant: "destructive",
         title: "Erro ao receber mensagens",
         description: "Não foi possível buscar novas mensagens.",
         duration: 5000,
       });
-      console.error('Erro ao receber mensagens:', error);
     }
   };
 
