@@ -24,15 +24,14 @@ export const receiveMessages = async (userId: string, privateKey: number): Promi
 };
 
 export async function disconnectUser(userId: string): Promise<void> {
-  const response = await fetch('http://localhost:3000/disconnect', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ userId }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to disconnect user');
-  }
+  await api.post('/disconnect', { userId });
 }
+
+export const getPublicKey = async (userId: string): Promise<PublicKey> => {
+  const response = await api.get<PublicKey>(`/public-key/${userId}`);
+  return response.data;
+};
+
+export const sendHeartbeat = async (userId: string): Promise<void> => {
+  await api.post('/heartbeat', { userId });
+};

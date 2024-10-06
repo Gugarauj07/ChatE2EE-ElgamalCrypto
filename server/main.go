@@ -30,6 +30,7 @@ func main() {
 	r.GET("/public-key/:userId", api.GetPublicKey)
 	r.POST("/send-message", api.SendMessage)
 	r.POST("/receive-messages", api.ReceiveMessages)
+	r.POST("/heartbeat", api.Heartbeat)
 
 	// Rota do Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

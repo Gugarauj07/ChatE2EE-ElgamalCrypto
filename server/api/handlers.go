@@ -6,12 +6,17 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"time"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
 var users = make(map[string]models.User)
 var messages = make(map[string][]models.ChatMessage)
+var usersMutex = &sync.Mutex{}
+
+const userTimeout = 5 * time.Minute
 
 // SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
 type SendMessageRequest struct {
@@ -61,7 +66,11 @@ func Connect(c *gin.Context) {
 		return
 	}
 
+	user.LastActivity = time.Now()
+	usersMutex.Lock()
 	users[user.UserId] = user
+	usersMutex.Unlock()
+
 	log.Printf("User connected successfully: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -78,9 +87,17 @@ func Connect(c *gin.Context) {
 // @Success 200 {array} string
 // @Router /users [get]
 func GetUsers(c *gin.Context) {
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
 	userIDs := make([]string, 0, len(users))
-	for id := range users {
-		userIDs = append(userIDs, id)
+	for id, user := range users {
+		if time.Since(user.LastActivity) < userTimeout {
+			userIDs = append(userIDs, id)
+		} else {
+			delete(users, id)
+			delete(messages, id)
+		}
 	}
 	c.JSON(http.StatusOK, userIDs)
 }
@@ -96,11 +113,16 @@ func GetUsers(c *gin.Context) {
 // @Router /public-key/{userId} [get]
 func GetPublicKey(c *gin.Context) {
 	userID := c.Param("userId")
+	usersMutex.Lock()
 	user, exists := users[userID]
 	if !exists {
+		usersMutex.Unlock()
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
+	user.LastActivity = time.Now()
+	users[userID] = user
+	usersMutex.Unlock()
 	c.JSON(http.StatusOK, user.PublicKey)
 }
 
@@ -185,4 +207,26 @@ func Disconnect(c *gin.Context) {
 		"message": "User disconnected successfully",
 		"userId":  req.UserId,
 	})
+}
+
+// Nova função para o heartbeat
+func Heartbeat(c *gin.Context) {
+	var req struct {
+		UserId string `json:"userId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	usersMutex.Lock()
+	if user, exists := users[req.UserId]; exists {
+		user.LastActivity = time.Now()
+		users[req.UserId] = user
+		usersMutex.Unlock()
+		c.JSON(http.StatusOK, gin.H{"message": "Heartbeat received"})
+	} else {
+		usersMutex.Unlock()
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	}
 }

@@ -1,3 +1,5 @@
+import { ElGamal } from '../utils/elgamal';
+
 export interface PublicKey {
   p: number;
   g: number;
@@ -20,12 +22,22 @@ export interface EncryptedMessage {
 
 export interface ChatMessage {
   sender: string;
-  receiver: string;
-  message: string;
+  content: string;
+}
+
+export interface ReceivedMessage {
+  senderId: string;
+  encryptedMessage: EncryptedMessage;
 }
 
 export interface EncryptionLogEntry {
   type: 'keys' | 'connect' | 'partner' | 'encrypt' | 'decrypt';
   content: string;
   details: string;
+}
+
+// Adicionando o tipo para o estado de navegação
+export interface LocationState {
+  selectedUser: string;
+  elgamal: ElGamal;
 }

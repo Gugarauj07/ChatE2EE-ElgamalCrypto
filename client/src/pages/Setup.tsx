@@ -10,6 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom' // Importando useNavigate
+import { LocationState } from '../types'; // Importando o tipo
 
 const Setup: React.FC = () => {
   const { toast } = useToast()
@@ -20,6 +22,7 @@ const Setup: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate(); // Inicializando o navigate
 
   useEffect(() => {
     try {
@@ -121,6 +124,12 @@ const Setup: React.FC = () => {
     }
   };
 
+  const handleStartChat = () => {
+    if (selectedUser && elgamal) {
+      navigate('/chat', { state: { selectedUser, elgamal } as LocationState });
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <Card className="w-full max-w-2xl mx-auto shadow-lg border border-gray-300 bg-white rounded-lg">
@@ -218,12 +227,17 @@ const Setup: React.FC = () => {
                     )}
                   </ScrollArea>
                   {selectedUser && (
-                    <Alert className="bg-green-100 border border-green-300 text-green-700 mt-4">
-                      <AlertTitle>Usuário Selecionado</AlertTitle>
-                      <AlertDescription>
-                        Você selecionou: <strong>{selectedUser}</strong>
-                      </AlertDescription>
-                    </Alert>
+                    <div className="flex justify-between items-center mt-4">
+                      <Alert className="bg-green-100 border border-green-300 text-green-700 flex-1 mr-4">
+                        <AlertTitle>Usuário Selecionado</AlertTitle>
+                        <AlertDescription>
+                          Você selecionou: <strong>{selectedUser}</strong>
+                        </AlertDescription>
+                      </Alert>
+                      <Button onClick={handleStartChat} className="bg-purple-600 hover:bg-purple-700 text-white">
+                        Iniciar Chat
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>

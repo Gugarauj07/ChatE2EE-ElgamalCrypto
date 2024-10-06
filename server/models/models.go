@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type KeyPair struct {
 	PublicKey  int64 `json:"publicKey"`
 	PrivateKey int64 `json:"privateKey"`
@@ -23,6 +25,7 @@ type PublicKey struct {
 }
 
 type User struct {
-	UserId    string    `json:"userId"`
-	PublicKey PublicKey `json:"publicKey"`
+	UserId       string    `json:"userId"`
+	PublicKey    PublicKey `json:"publicKey"`
+	LastActivity time.Time `json:"-"`
 }
