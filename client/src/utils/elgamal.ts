@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto';
+
 interface PublicKey {
   p: string;
   g: string;
@@ -14,23 +16,32 @@ interface EncryptedMessage {
 }
 
 export class ElGamal {
+  static cachedKeys: { publicKey: PublicKey; privateKey: PrivateKey } | null = null;
+
   publicKey: PublicKey;
   privateKey: PrivateKey;
 
   constructor() {
-    this.publicKey = { p: '0', g: '0', y: '0' };
-    this.privateKey = { x: '0' };
-    this.generateKeys();
+    if (ElGamal.cachedKeys) {
+      this.publicKey = ElGamal.cachedKeys.publicKey;
+      this.privateKey = ElGamal.cachedKeys.privateKey;
+    } else {
+      this.publicKey = { p: '0', g: '0', y: '0' };
+      this.privateKey = { x: '0' };
+      this.generateKeys();
+      ElGamal.cachedKeys = { publicKey: this.publicKey, privateKey: this.privateKey };
+    }
   }
 
   /**
    * Gera as chaves públicas e privadas para o algoritmo ElGamal.
    */
   generateKeys(): void {
-    const p = this.generateLargePrime(16); // Tamanho reduzido para demonstração (16 bits)
-    const g = this.findPrimitiveRoot(p);
+    const q = this.generateLargePrime(127); // p = 2q + 1, q = 127 bits
+    const p = 2n * q + 1n;
+    const g = this.findPrimitiveRoot(p, q);
     const x = this.generateSecureRandomBigInt(1n, p - 2n);
-    const y = this.modularExponentiation(BigInt(g), BigInt(x), BigInt(p));
+    const y = this.modularExponentiation(g, x, p);
 
     this.publicKey = { p: p.toString(), g: g.toString(), y: y.toString() };
     this.privateKey = { x: x.toString() };
@@ -85,6 +96,7 @@ export class ElGamal {
   setKeys(publicKey: PublicKey, privateKey: PrivateKey): void {
     this.publicKey = publicKey;
     this.privateKey = privateKey;
+    ElGamal.cachedKeys = { publicKey, privateKey };
   }
 
   /**
@@ -97,28 +109,28 @@ export class ElGamal {
     let prime: bigint;
     do {
       prime = this.randomBigInt(bitLength);
+      // Garante que o número é ímpar
+      prime = prime | 1n;
     } while (!this.isProbablePrime(prime, 5));
     return prime;
   }
 
   /**
-   * Encontra uma raiz primitiva módulo p.
+   * Encontra uma raiz primitiva módulo p, sabendo que p = 2q + 1 com q primo.
    *
    * @param p O módulo primo.
+   * @param q O primo tal que p = 2q + 1.
    * @returns Uma raiz primitiva.
    */
-  private findPrimitiveRoot(p: bigint): bigint {
-    if (p === 2n) return 1n;
-    const factors = this.factorize(p - 1n);
-    for (let g = 2n; g < p; g++) {
-      let flag = true;
-      for (const factor of factors) {
-        if (this.modularExponentiation(g, (p - 1n) / factor, p) === 1n) {
-          flag = false;
-          break;
-        }
+  private findPrimitiveRoot(p: bigint, q: bigint): bigint {
+    const candidates = [2n, 3n, 5n, 7n, 11n];
+    for (const g of candidates) {
+      if (
+        this.modularExponentiation(g, 2n, p) !== 1n &&
+        this.modularExponentiation(g, q, p) !== 1n
+      ) {
+        return g;
       }
-      if (flag) return g;
     }
     throw new Error('Raiz primitiva não encontrada');
   }
@@ -132,11 +144,10 @@ export class ElGamal {
    */
   private generateSecureRandomBigInt(min: bigint, max: bigint): bigint {
     const range = max - min + 1n;
-    const byteLength = Math.ceil(Number(range.toString(2).length) / 8);
+    const byteLength = Math.ceil(range.toString(2).length / 8);
     let randomBigInt: bigint;
     do {
-      const randomBytes = new Uint8Array(byteLength);
-      window.crypto.getRandomValues(randomBytes);
+      const randomBytes = randomBytesSync(byteLength);
       randomBigInt = 0n;
       for (let i = 0; i < randomBytes.length; i++) {
         randomBigInt = (randomBigInt << 8n) + BigInt(randomBytes[i]);
@@ -153,8 +164,7 @@ export class ElGamal {
    */
   private randomBigInt(bitLength: number): bigint {
     const byteLength = Math.ceil(bitLength / 8);
-    const randomBytes = new Uint8Array(byteLength);
-    window.crypto.getRandomValues(randomBytes);
+    const randomBytes = randomBytesSync(byteLength);
     let randomBig = 0n;
     for (let i = 0; i < randomBytes.length; i++) {
       randomBig = (randomBig << 8n) + BigInt(randomBytes[i]);
@@ -190,43 +200,18 @@ export class ElGamal {
       const a = this.generateSecureRandomBigInt(2n, n - 2n);
       let x = this.modularExponentiation(a, d, n);
       if (x === 1n || x === n - 1n) continue;
-      let continueOuter = false;
+      let flag = false;
       for (let r = 0n; r < s - 1n; r++) {
         x = this.modularExponentiation(x, 2n, n);
         if (x === n - 1n) {
-          continueOuter = true;
+          flag = true;
           break;
         }
       }
-      if (continueOuter) continue;
+      if (flag) continue;
       return false;
     }
     return true;
-  }
-
-  /**
-   * Fatora p-1 e retorna os fatores únicos.
-   *
-   * @param n O número a ser fatorado.
-   * @returns Um array de fatores únicos.
-   */
-  private factorize(n: bigint): bigint[] {
-    const factors: bigint[] = [];
-    let divisor = 2n;
-    while (n % divisor === 0n) {
-      if (!factors.includes(divisor)) factors.push(divisor);
-      n /= divisor;
-    }
-    divisor = 3n;
-    while (divisor * divisor <= n) {
-      while (n % divisor === 0n) {
-        if (!factors.includes(divisor)) factors.push(divisor);
-        n /= divisor;
-      }
-      divisor += 2n;
-    }
-    if (n > 2n && !factors.includes(n)) factors.push(n);
-    return factors;
   }
 
   /**
@@ -289,13 +274,7 @@ export class ElGamal {
    * @returns O BigInt correspondente.
    */
   private stringToBigInt(str: string): bigint {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(str);
-    let result = 0n;
-    for (let i = 0; i < bytes.length; i++) {
-      result = (result << 8n) + BigInt(bytes[i]);
-    }
-    return result;
+    return BigInt('0x' + Buffer.from(str, 'utf-8').toString('hex'));
   }
 
   /**
@@ -305,12 +284,18 @@ export class ElGamal {
    * @returns A string correspondente.
    */
   private bigIntToString(num: bigint): string {
-    const bytes = [];
-    while (num > 0n) {
-      bytes.unshift(Number(num & 255n));
-      num = num >> 8n;
-    }
-    const decoder = new TextDecoder();
-    return decoder.decode(new Uint8Array(bytes));
+    const hex = num.toString(16);
+    const paddedHex = hex.padStart(Math.ceil(hex.length / 2) * 2, '0');
+    return Buffer.from(paddedHex, 'hex').toString('utf-8');
   }
+}
+
+/**
+ * Função auxiliar para gerar bytes aleatórios.
+ *
+ * @param size O número de bytes a serem gerados.
+ * @returns Um Uint8Array com bytes aleatórios.
+ */
+function randomBytesSync(size: number): Uint8Array {
+  return Uint8Array.from(randomBytes(size));
 }

@@ -78,11 +78,11 @@ const Chat: React.FC = () => {
 
   const fetchMessages = async () => {
     try {
-      const receivedMessages = await receiveMessages(elgamal.privateKey.x, selectedUser);
+      const receivedMessages = await receiveMessages(userId, selectedUser);
       if (receivedMessages.length > 0) {
         const decryptedMessages = receivedMessages.map((msg: any) => ({
           ...msg,
-          content: elgamal.decrypt({ a: msg.content, b: msg.content }, elgamal.privateKey, elgamal.publicKey.p),
+          content: elgamal.decrypt({ a: msg.content.split(',')[0], b: msg.content.split(',')[1] }, elgamal.privateKey, elgamal.publicKey.p),
         }));
         setMessages(decryptedMessages);
       }
@@ -138,8 +138,11 @@ const Chat: React.FC = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Card className="w-full max-w-3xl mx-auto shadow-lg border border-gray-300 bg-white rounded-lg">
-        <CardHeader className="bg-gray-800 text-white flex justify-between items-center rounded-t-lg">
-          <div className="flex items-center">
+        <CardHeader className="bg-gray-800 text-white flex items-center rounded-t-lg p-4">
+          <Button variant="ghost" onClick={handleBack} className="mr-4">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex items-center flex-grow">
             <Avatar className="h-10 w-10 bg-gray-200">
               <AvatarImage src={`https://avatar.vercel.sh/${selectedUser}.png`} alt={selectedUser} />
               <AvatarFallback>{selectedUser.charAt(0).toUpperCase()}</AvatarFallback>
@@ -149,9 +152,6 @@ const Chat: React.FC = () => {
               <CardDescription>Chat com {selectedUser}</CardDescription>
             </div>
           </div>
-          <Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
         </CardHeader>
         <CardContent className="p-6">
           <ScrollArea className="h-80 w-full rounded-md border border-gray-300 p-4 overflow-y-auto" ref={scrollRef}>
