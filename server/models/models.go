@@ -12,13 +12,13 @@ type EncryptedMessage struct {
 }
 
 type ChatMessage struct {
-	SenderId string           `json:"senderId"`
-	Content  EncryptedMessage `json:"content"`
+	SenderId string `json:"senderId"`
+	Content  string `json:"content"`
 }
 
 type User struct {
-	UserId    string    `json:"userId"`
-	PublicKey PublicKey `json:"publicKey"`
+	UserId    string `json:"userId"`
+	PublicKey string `json:"publicKey"`
 }
 
 type PublicKey int64

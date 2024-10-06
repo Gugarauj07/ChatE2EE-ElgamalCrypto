@@ -24,13 +24,10 @@ func main() {
 	r.Use(cors.New(config))
 
 	// Rotas
-	r.GET("/generate-keys", api.GenerateKeys)
 	r.POST("/connect", api.Connect)
 	r.POST("/disconnect", api.Disconnect)
 	r.GET("/users", api.GetUsers)
 	r.GET("/public-key/:userId", api.GetPublicKey)
-	r.POST("/encrypt", api.EncryptMessage)
-	r.POST("/decrypt", api.DecryptMessage)
 	r.POST("/send-message", api.SendMessage)
 	r.POST("/receive-messages", api.ReceiveMessages)
 

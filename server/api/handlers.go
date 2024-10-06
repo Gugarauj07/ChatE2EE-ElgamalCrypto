@@ -2,7 +2,6 @@ package api
 
 import (
 	"server/models"
-	"server/services"
 	"net/http"
 	"bytes"
 	"io/ioutil"
@@ -14,45 +13,16 @@ import (
 var users = make(map[string]models.User)
 var messages = make(map[string][]models.ChatMessage)
 
-// EncryptRequest representa a estrutura de requisição para encriptar uma mensagem
-type EncryptRequest struct {
-	Message   string           `json:"message"`
-	PublicKey models.PublicKey `json:"publicKey"`
-}
-
-// DecryptRequest representa a estrutura de requisição para decriptar uma mensagem
-type DecryptRequest struct {
-	EncryptedMessage models.EncryptedMessage `json:"encryptedMessage"`
-	PrivateKey       int                     `json:"privateKey"`
-}
-
 // SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
 type SendMessageRequest struct {
-	EncryptedMessage models.EncryptedMessage `json:"encryptedMessage"`
-	SenderId         string                  `json:"senderId"`
-	ReceiverId       string                  `json:"receiverId"`
+	EncryptedMessage string `json:"encryptedMessage"`
+	SenderId         string `json:"senderId"`
+	ReceiverId       string `json:"receiverId"`
 }
 
 // ReceiveMessagesRequest representa a estrutura de requisição para receber mensagens
 type ReceiveMessagesRequest struct {
 	UserId string `json:"userId"`
-}
-
-// GenerateKeys godoc
-// @Summary Gera um novo par de chaves
-// @Description Gera e retorna um novo par de chaves pública e privada
-// @Tags keys
-// @Produce json
-// @Success 200 {object} models.KeyPair
-// @Failure 500 {object} map[string]string
-// @Router /generate-keys [get]
-func GenerateKeys(c *gin.Context) {
-	keys, err := services.GenerateKeys()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate keys"})
-		return
-	}
-	c.JSON(http.StatusOK, keys)
 }
 
 // Connect godoc
@@ -66,11 +36,8 @@ func GenerateKeys(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Router /connect [post]
 func Connect(c *gin.Context) {
-	// Primeiro, vamos imprimir o corpo da requisição bruto
 	body, _ := ioutil.ReadAll(c.Request.Body)
 	log.Printf("Raw request body: %s", string(body))
-
-	// É importante restaurar o corpo da requisição para que possa ser lido novamente
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
 	var user models.User
@@ -80,25 +47,22 @@ func Connect(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Parsed user data: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+	log.Printf("Parsed user data: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
 
-	// Validação adicional
-	if user.UserId == "" || user.PublicKey == 0 {
-		log.Printf("Invalid user data: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+	if user.UserId == "" || user.PublicKey == "" {
+		log.Printf("Invalid user data: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
 		return
 	}
 
-	// Verifica se o usuário já existe
 	if _, exists := users[user.UserId]; exists {
 		log.Printf("User ID already exists: %s", user.UserId)
 		c.JSON(http.StatusConflict, gin.H{"error": "User ID already exists"})
 		return
 	}
 
-	// Salva o usuário (idealmente, isso seria feito em um banco de dados)
 	users[user.UserId] = user
-	log.Printf("User connected successfully: UserId='%s', PublicKey=%d", user.UserId, user.PublicKey)
+	log.Printf("User connected successfully: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User connected successfully",
@@ -127,7 +91,7 @@ func GetUsers(c *gin.Context) {
 // @Tags users
 // @Produce json
 // @Param userId path string true "ID do usuário"
-// @Success 200 {integer} int
+// @Success 200 {string} string
 // @Failure 404 {object} map[string]string
 // @Router /public-key/{userId} [get]
 func GetPublicKey(c *gin.Context) {
@@ -138,46 +102,6 @@ func GetPublicKey(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, user.PublicKey)
-}
-
-// EncryptMessage godoc
-// @Summary Encripta uma mensagem
-// @Description Encripta uma mensagem usando a chave pública fornecida
-// @Tags messages
-// @Accept json
-// @Produce json
-// @Param request body EncryptRequest true "Mensagem e chave pública"
-// @Success 200 {object} models.EncryptedMessage
-// @Failure 400 {object} map[string]string
-// @Router /encrypt [post]
-func EncryptMessage(c *gin.Context) {
-	var req EncryptRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	encrypted := services.Encrypt(req.Message, req.PublicKey)
-	c.JSON(http.StatusOK, encrypted)
-}
-
-// DecryptMessage godoc
-// @Summary Decripta uma mensagem
-// @Description Decripta uma mensagem usando a chave privada fornecida
-// @Tags messages
-// @Accept json
-// @Produce json
-// @Param request body DecryptRequest true "Mensagem encriptada e chave privada"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /decrypt [post]
-func DecryptMessage(c *gin.Context) {
-	var req DecryptRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	decrypted := services.Decrypt(req.EncryptedMessage, req.PrivateKey)
-	c.JSON(http.StatusOK, gin.H{"decryptedMessage": decrypted})
 }
 
 // SendMessage godoc

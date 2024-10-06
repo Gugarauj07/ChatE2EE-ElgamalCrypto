@@ -1,53 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { generateKeys, connectToServer, getUsers, getPublicKey } from '../services/api';
+import { connectToServer, getUsers, getPublicKey } from '../services/api';
 import { KeyPair, PublicKey, EncryptionLogEntry } from '../types';
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { Label } from "../components/ui/label";
+import { CheckCircle, UserPlus } from 'lucide-react'; // Importe ícones
 
 interface SetupProps {
   onSetupComplete: (userId: string, keys: KeyPair, partnerUserId: string, partnerPublicKey: PublicKey) => void;
   setEncryptionLog: React.Dispatch<React.SetStateAction<EncryptionLogEntry[]>>;
+  isConnected: boolean;
+  userId: string;
+  keys: KeyPair;
 }
 
-export default function Setup({ onSetupComplete, setEncryptionLog }: SetupProps) {
-  const [keys, setKeys] = useState<KeyPair | null>(null);
-  const [userId, setUserId] = useState('');
+export default function Setup({ onSetupComplete, setEncryptionLog, isConnected, userId, keys }: SetupProps) {
   const [partnerUserId, setPartnerUserId] = useState('');
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    generateNewKeys();
-  }, []);
+    if (isConnected) {
+      fetchUsers();
+    }
+  }, [isConnected]);
 
-  const generateNewKeys = async () => {
-    const generatedKeys = await generateKeys();
-    setKeys(generatedKeys);
-    setEncryptionLog(prev => [...prev, {
-      type: 'keys',
-      content: 'Novas chaves geradas',
-      details: JSON.stringify(generatedKeys.publicKey)
-    }]);
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      const users = await getUsers();
+      setAvailableUsers(users.filter(id => id !== userId));
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleConnect = async () => {
     if (userId && keys) {
-      console.log("Conectando ao servidor...");
-      await connectToServer(userId, keys.publicKey);
-      console.log("Conectado. Buscando usuários...");
-      const users = await getUsers();
-      console.log("Usuários disponíveis:", users);
-      setAvailableUsers(users.filter(id => id !== userId));
+      setIsLoading(true);
+      try {
+        await connectToServer(userId, keys.publicKey);
+        await fetchUsers();
+      } catch (error) {
+        console.error("Erro ao conectar:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleSelectPartner = async (selectedUserId: string) => {
-    console.log("Parceiro selecionado:", selectedUserId);
     setPartnerUserId(selectedUserId);
     if (keys) {
       const partnerPublicKey = await getPublicKey(selectedUserId);
-      console.log("Chave pública do parceiro:", partnerPublicKey);
       onSetupComplete(userId, keys, selectedUserId, partnerPublicKey);
     }
   };
@@ -58,59 +66,53 @@ export default function Setup({ onSetupComplete, setEncryptionLog }: SetupProps)
         <CardTitle className="text-2xl font-bold text-center">Configuração do Chat</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
-              Seu ID de Usuário
-            </label>
-            <Input
-              id="userId"
-              type="text"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="Digite seu ID de usuário"
-            />
+        {isConnected ? (
+          <div className="flex items-center justify-center space-x-2 text-green-600">
+            <CheckCircle size={24} />
+            <span>Conectado como {userId}</span>
           </div>
-
-          <Button onClick={handleConnect} disabled={!userId || !keys} className="w-full">
-            Conectar ao Servidor
-          </Button>
-
-          {availableUsers.length > 0 && (
+        ) : (
+          <div className="space-y-4">
             <div>
-              <label htmlFor="partnerSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                Selecione um Parceiro
+              <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
+                Seu ID de Usuário: {userId}
               </label>
-              <Select onValueChange={handleSelectPartner}>
-                <SelectTrigger id="partnerSelect">
-                  <SelectValue placeholder="Escolha um parceiro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableUsers.map((user) => (
-                    // Certifique-se de que 'user' não seja uma string vazia
-                    user && (
-                      <SelectItem key={user} value={user}>
-                        {user}
-                      </SelectItem>
-                    )
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-          )}
-
-          <Button onClick={generateNewKeys} variant="outline" className="w-full">
-            Gerar Novas Chaves
-          </Button>
-        </div>
-
-        {keys && (
-          <div className="mt-6 p-4 bg-gray-100 rounded-md">
-            <h2 className="text-lg font-semibold mb-2">Suas Chaves:</h2>
-            <pre className="text-xs overflow-x-auto">
-              {JSON.stringify(keys, null, 2)}
-            </pre>
+            <Button onClick={handleConnect} disabled={!userId || !keys || isLoading} className="w-full">
+              {isLoading ? "Conectando..." : "Conectar ao Servidor"}
+            </Button>
           </div>
+        )}
+
+        {isConnected && (
+          <>
+            {availableUsers.length > 0 ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selecione um Parceiro
+                </label>
+                <RadioGroup onValueChange={handleSelectPartner} className="space-y-2">
+                  {availableUsers.map((user) => (
+                    <div key={user} className="flex items-center space-x-2 p-2 border rounded-md hover:bg-gray-100">
+                      <RadioGroupItem value={user} id={user} />
+                      <Label htmlFor={user} className="flex items-center space-x-2">
+                        <UserPlus size={18} />
+                        <span>{user}</span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            ) : (
+              <Card className="bg-yellow-100 border-yellow-300">
+                <CardContent className="p-4">
+                  <p className="text-yellow-800 text-center">
+                    Nenhum usuário disponível no momento. Aguarde ou tente novamente mais tarde.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
