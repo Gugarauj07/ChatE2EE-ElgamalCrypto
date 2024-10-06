@@ -47,10 +47,10 @@ func Connect(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Parsed user data: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
+	log.Printf("Parsed user data: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 
-	if user.UserId == "" || user.PublicKey == "" {
-		log.Printf("Invalid user data: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
+	if user.UserId == "" || user.PublicKey.P == 0 || user.PublicKey.G == 0 || user.PublicKey.Y == 0 {
+		log.Printf("Invalid user data: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
 		return
 	}
@@ -62,7 +62,7 @@ func Connect(c *gin.Context) {
 	}
 
 	users[user.UserId] = user
-	log.Printf("User connected successfully: UserId='%s', PublicKey=%s", user.UserId, user.PublicKey)
+	log.Printf("User connected successfully: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User connected successfully",

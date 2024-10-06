@@ -16,9 +16,13 @@ type ChatMessage struct {
 	Content  string `json:"content"`
 }
 
-type User struct {
-	UserId    string `json:"userId"`
-	PublicKey string `json:"publicKey"`
+type PublicKey struct {
+	P int64 `json:"p"`
+	G int64 `json:"g"`
+	Y int64 `json:"y"`
 }
 
-type PublicKey int64
+type User struct {
+	UserId    string    `json:"userId"`
+	PublicKey PublicKey `json:"publicKey"`
+}

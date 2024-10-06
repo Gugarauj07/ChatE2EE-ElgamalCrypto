@@ -292,11 +292,25 @@ const docTemplate = `{
                 }
             }
         },
+        "models.PublicKey": {
+            "type": "object",
+            "properties": {
+                "g": {
+                    "type": "integer"
+                },
+                "p": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.User": {
             "type": "object",
             "properties": {
                 "publicKey": {
-                    "type": "string"
+                    "$ref": "#/definitions/models.PublicKey"
                 },
                 "userId": {
                     "type": "string"

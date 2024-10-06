@@ -7,22 +7,29 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 
 const Setup: React.FC = () => {
+  const { toast } = useToast()
   const [elgamal, setElgamal] = useState<ElGamal | null>(null);
   const [username, setUsername] = useState('');
   const [connected, setConnected] = useState(false);
   const [users, setUsers] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const eg = new ElGamal();
       setElgamal(eg);
     } catch (err) {
-      setError("Erro ao gerar chaves iniciais. Por favor, tente novamente.");
+      toast({
+        variant: "destructive",
+        title: "Erro ao gerar chaves iniciais",
+        description: "Por favor, tente novamente.",
+        duration: 5000,
+      })
       console.error(err);
     }
   }, []);
@@ -39,9 +46,13 @@ const Setup: React.FC = () => {
       const eg = new ElGamal();
       setElgamal(eg);
       setShowExplanation(true);
-      setError(null);
     } catch (err) {
-      setError("Erro ao gerar novas chaves. Por favor, tente novamente.");
+      toast({
+        variant: "destructive",
+        title: "Erro ao gerar novas chaves",
+        description: "Por favor, tente novamente.",
+        duration: 5000,
+      })
       console.error(err);
     }
   };
@@ -57,7 +68,12 @@ const Setup: React.FC = () => {
         setConnected(true);
         fetchUsers();
       } catch (error) {
-        setError("Erro ao conectar. Por favor, tente novamente.");
+        toast({
+          variant: "destructive",
+          title: "Erro ao conectar",
+          description: "Por favor, tente novamente.",
+          duration: 5000,
+        })
         console.error('Erro ao conectar:', error);
       }
     }
@@ -69,7 +85,12 @@ const Setup: React.FC = () => {
         const userList = await getUsers();
         setUsers(userList.filter(user => user !== username));
       } catch (error) {
-        setError("Erro ao obter usuários. Por favor, tente novamente.");
+        toast({
+          variant: "destructive",
+          title: "Erro ao obter usuários",
+          description: "Por favor, tente novamente.",
+          duration: 5000,
+        })
         console.error('Erro ao obter usuários:', error);
       }
     }
@@ -87,7 +108,12 @@ const Setup: React.FC = () => {
         setSelectedUser(null);
         setUsers([]);
       } catch (error) {
-        setError("Erro ao desconectar. Por favor, tente novamente.");
+        toast({
+          variant: "destructive",
+          title: "Erro ao desconectar",
+          description: "Por favor, tente novamente.",
+          duration: 5000,
+        })
         console.error('Erro ao desconectar:', error);
       }
     }
@@ -101,12 +127,6 @@ const Setup: React.FC = () => {
           <CardDescription>Configure suas chaves e conecte-se ao chat</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTitle>Erro</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
           {!connected ? (
             <>
               <div className="space-y-6">
@@ -204,6 +224,7 @@ const Setup: React.FC = () => {
           )}
         </CardFooter>
       </Card>
+      <Toaster />
     </div>
   );
 };
