@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { Search } from 'lucide-react'
 
 const Setup: React.FC = () => {
   const { toast } = useToast()
@@ -18,6 +19,7 @@ const Setup: React.FC = () => {
   const [users, setUsers] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     try {
@@ -167,9 +169,9 @@ const Setup: React.FC = () => {
           ) : (
             <>
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700">
-                    Seu nome: <span className="font-bold text-gray-900">{username}</span>
+                <div className="bg-blue-100 p-4 rounded-lg border border-blue-300">
+                  <h3 className="text-xl font-semibold text-blue-800">
+                    Seu ID: <span className="font-bold text-blue-900">{username}</span>
                   </h3>
                 </div>
                 <div>
@@ -181,26 +183,38 @@ const Setup: React.FC = () => {
                   </pre>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700">Usuários Disponíveis:</h3>
-                  <ScrollArea className="h-60 w-full rounded-md border border-gray-300 mt-2">
-                    {users.length > 0 ? (
-                      users.map((user) => (
-                        <div
-                          key={user}
-                          className={`flex items-center p-3 hover:bg-gray-100 cursor-pointer ${
-                            selectedUser === user ? 'bg-blue-100' : ''
-                          }`}
-                          onClick={() => handleSelectUser(user)}
-                        >
-                          <Avatar className="h-10 w-10 bg-gray-200">
-                            <AvatarImage src={`https://avatar.vercel.sh/${user}.png`} alt={user} />
-                            <AvatarFallback>{user.charAt(0).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span className="ml-3 text-gray-800">{user}</span>
-                        </div>
-                      ))
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Usuários Disponíveis:</h3>
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Search className="text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar usuários..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-grow"
+                    />
+                  </div>
+                  <ScrollArea className="h-60 w-full rounded-md border border-gray-300">
+                    {users.filter(user => user.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? (
+                      users
+                        .filter(user => user.toLowerCase().includes(searchTerm.toLowerCase()))
+                        .map((user) => (
+                          <div
+                            key={user}
+                            className={`flex items-center p-3 hover:bg-gray-100 cursor-pointer ${
+                              selectedUser === user ? 'bg-blue-100' : ''
+                            }`}
+                            onClick={() => handleSelectUser(user)}
+                          >
+                            <Avatar className="h-10 w-10 bg-gray-200">
+                              <AvatarImage src={`https://avatar.vercel.sh/${user}.png`} alt={user} />
+                              <AvatarFallback>{user.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="ml-3 text-gray-800">{user}</span>
+                          </div>
+                        ))
                     ) : (
-                      <p className="text-gray-500 p-4">Nenhum usuário disponível no momento.</p>
+                      <p className="text-gray-500 p-4">Nenhum usuário encontrado.</p>
                     )}
                   </ScrollArea>
                   {selectedUser && (
