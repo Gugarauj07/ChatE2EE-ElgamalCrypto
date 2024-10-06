@@ -55,52 +55,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/decrypt": {
-            "post": {
-                "description": "Decripta uma mensagem usando a chave privada fornecida",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "messages"
-                ],
-                "summary": "Decripta uma mensagem",
-                "parameters": [
-                    {
-                        "description": "Mensagem encriptada e chave privada",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.DecryptRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/disconnect": {
             "post": {
                 "description": "Remove um usuário do servidor",
@@ -156,78 +110,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/encrypt": {
-            "post": {
-                "description": "Encripta uma mensagem usando a chave pública fornecida",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "messages"
-                ],
-                "summary": "Encripta uma mensagem",
-                "parameters": [
-                    {
-                        "description": "Mensagem e chave pública",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.EncryptRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.EncryptedMessage"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/generate-keys": {
-            "get": {
-                "description": "Gera e retorna um novo par de chaves pública e privada",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "keys"
-                ],
-                "summary": "Gera um novo par de chaves",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.KeyPair"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/public-key/{userId}": {
             "get": {
                 "description": "Retorna a chave pública de um usuário específico",
@@ -251,7 +133,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     },
                     "404": {
@@ -377,28 +259,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.DecryptRequest": {
-            "type": "object",
-            "properties": {
-                "encryptedMessage": {
-                    "$ref": "#/definitions/models.EncryptedMessage"
-                },
-                "privateKey": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.EncryptRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "publicKey": {
-                    "type": "integer"
-                }
-            }
-        },
         "api.ReceiveMessagesRequest": {
             "type": "object",
             "properties": {
@@ -411,7 +271,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "encryptedMessage": {
-                    "$ref": "#/definitions/models.EncryptedMessage"
+                    "type": "string"
                 },
                 "receiverId": {
                     "type": "string"
@@ -425,32 +285,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
-                    "$ref": "#/definitions/models.EncryptedMessage"
+                    "type": "string"
                 },
                 "senderId": {
                     "type": "string"
-                }
-            }
-        },
-        "models.EncryptedMessage": {
-            "type": "object",
-            "properties": {
-                "c1": {
-                    "type": "string"
-                },
-                "c2": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.KeyPair": {
-            "type": "object",
-            "properties": {
-                "privateKey": {
-                    "type": "integer"
-                },
-                "publicKey": {
-                    "type": "integer"
                 }
             }
         },
@@ -458,7 +296,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "publicKey": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "userId": {
                     "type": "string"

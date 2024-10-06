@@ -1,19 +1,5 @@
 basePath: /
 definitions:
-  api.DecryptRequest:
-    properties:
-      encryptedMessage:
-        $ref: '#/definitions/models.EncryptedMessage'
-      privateKey:
-        type: integer
-    type: object
-  api.EncryptRequest:
-    properties:
-      message:
-        type: string
-      publicKey:
-        type: integer
-    type: object
   api.ReceiveMessagesRequest:
     properties:
       userId:
@@ -22,7 +8,7 @@ definitions:
   api.SendMessageRequest:
     properties:
       encryptedMessage:
-        $ref: '#/definitions/models.EncryptedMessage'
+        type: string
       receiverId:
         type: string
       senderId:
@@ -31,28 +17,14 @@ definitions:
   models.ChatMessage:
     properties:
       content:
-        $ref: '#/definitions/models.EncryptedMessage'
+        type: string
       senderId:
         type: string
-    type: object
-  models.EncryptedMessage:
-    properties:
-      c1:
-        type: string
-      c2:
-        type: string
-    type: object
-  models.KeyPair:
-    properties:
-      privateKey:
-        type: integer
-      publicKey:
-        type: integer
     type: object
   models.User:
     properties:
       publicKey:
-        type: integer
+        type: string
       userId:
         type: string
     type: object
@@ -89,36 +61,6 @@ paths:
       summary: Conecta um usuário ao servidor
       tags:
       - users
-  /decrypt:
-    post:
-      consumes:
-      - application/json
-      description: Decripta uma mensagem usando a chave privada fornecida
-      parameters:
-      - description: Mensagem encriptada e chave privada
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.DecryptRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Decripta uma mensagem
-      tags:
-      - messages
   /disconnect:
     post:
       consumes:
@@ -155,53 +97,6 @@ paths:
       summary: Desconecta um usuário do servidor
       tags:
       - users
-  /encrypt:
-    post:
-      consumes:
-      - application/json
-      description: Encripta uma mensagem usando a chave pública fornecida
-      parameters:
-      - description: Mensagem e chave pública
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.EncryptRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.EncryptedMessage'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Encripta uma mensagem
-      tags:
-      - messages
-  /generate-keys:
-    get:
-      description: Gera e retorna um novo par de chaves pública e privada
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.KeyPair'
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Gera um novo par de chaves
-      tags:
-      - keys
   /public-key/{userId}:
     get:
       description: Retorna a chave pública de um usuário específico
@@ -217,7 +112,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: integer
+            type: string
         "404":
           description: Not Found
           schema:

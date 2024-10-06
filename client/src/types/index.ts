@@ -14,9 +14,8 @@ export interface KeyPair {
 }
 
 export interface EncryptedMessage {
-  c1: number;
-  c2: number;
-  k: number;
+  a: number;
+  b: number;
 }
 
 export interface ChatMessage {
