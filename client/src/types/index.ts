@@ -16,8 +16,8 @@ export interface KeyPair {
 }
 
 export interface EncryptedMessage {
-  a: number;
-  b: number;
+  a: any;
+  b: any;
 }
 
 export interface ChatMessage {
@@ -39,5 +39,6 @@ export interface EncryptionLogEntry {
 // Adicionando o tipo para o estado de navegação
 export interface LocationState {
   selectedUser: string;
-  elgamal: ElGamal;
+  publicKey: string;
+  privateKey: string;
 }

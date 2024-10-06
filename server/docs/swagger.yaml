@@ -8,7 +8,12 @@ definitions:
   api.SendMessageRequest:
     properties:
       encryptedMessage:
-        type: string
+        properties:
+          a:
+            type: string
+          b:
+            type: string
+        type: object
       receiverId:
         type: string
       senderId:
@@ -18,7 +23,11 @@ definitions:
     properties:
       content:
         type: string
+      isRead:
+        type: boolean
       senderId:
+        type: string
+      timestamp:
         type: string
     type: object
   models.PublicKey:
@@ -74,7 +83,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Remove um usuário do servidor
+      description: Remove um usuário do servidor e seu histórico de chat
       parameters:
       - description: ID do usuário
         in: body

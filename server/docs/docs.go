@@ -57,7 +57,7 @@ const docTemplate = `{
         },
         "/disconnect": {
             "post": {
-                "description": "Remove um usuário do servidor",
+                "description": "Remove um usuário do servidor e seu histórico de chat",
                 "consumes": [
                     "application/json"
                 ],
@@ -271,7 +271,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "encryptedMessage": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "type": "string"
+                        },
+                        "b": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "receiverId": {
                     "type": "string"
@@ -287,7 +295,13 @@ const docTemplate = `{
                 "content": {
                     "type": "string"
                 },
+                "isRead": {
+                    "type": "boolean"
+                },
                 "senderId": {
+                    "type": "string"
+                },
+                "timestamp": {
                     "type": "string"
                 }
             }

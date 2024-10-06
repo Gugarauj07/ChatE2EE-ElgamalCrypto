@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sendMessage, receiveMessages, getPublicKey, sendHeartbeat } from '../services/api';
+import { ElGamal } from '../utils/elgamal';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,14 +15,21 @@ const Chat: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedUser, elgamal } = location.state as any;
+  const { selectedUser, publicKey, privateKey, userId } = location.state as any;
+
+  const [elgamal] = useState(() => {
+    const eg = new ElGamal();
+    eg.setKeys(publicKey, privateKey);
+    return eg;
+  });
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [receiverPublicKey, setReceiverPublicKey] = useState<any>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!selectedUser || !elgamal) {
+    if (!selectedUser || !publicKey || !privateKey) {
       toast({
         variant: "destructive",
         title: "Erro ao carregar chat",
@@ -48,10 +56,11 @@ const Chat: React.FC = () => {
     };
 
     fetchPublicKey();
+    fetchMessages();
     const intervalId = setInterval(fetchMessages, 5000);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [selectedUser]);
 
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
@@ -61,15 +70,21 @@ const Chat: React.FC = () => {
     return () => clearInterval(heartbeatInterval);
   }, [selectedUser]);
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   const fetchMessages = async () => {
     try {
-      const receivedMessages = await receiveMessages(elgamal.privateKey.x);
+      const receivedMessages = await receiveMessages(elgamal.privateKey.x, selectedUser);
       if (receivedMessages.length > 0) {
         const decryptedMessages = receivedMessages.map((msg: any) => ({
-          sender: msg.senderId,
-          content: elgamal.decrypt(msg.encryptedMessage, elgamal.privateKey, elgamal.publicKey.p),
+          ...msg,
+          content: elgamal.decrypt({ a: msg.content, b: msg.content }, elgamal.privateKey, elgamal.publicKey.p),
         }));
-        setMessages((prev: any) => [...prev, ...decryptedMessages]);
+        setMessages(decryptedMessages);
       }
     } catch (error) {
       console.error('Erro ao receber mensagens:', error);
@@ -96,9 +111,9 @@ const Chat: React.FC = () => {
 
     try {
       const encrypted = elgamal.encrypt(message, receiverPublicKey);
-      await sendMessage(encrypted, elgamal.privateKey.x.toString(), selectedUser);
-      setMessages((prev: any) => [...prev, { sender: 'Você', content: message }]);
+      await sendMessage(encrypted, userId, selectedUser);
       setMessage('');
+      fetchMessages(); // Atualiza as mensagens imediatamente após enviar
     } catch (error) {
       toast({
         variant: "destructive",
@@ -111,7 +126,13 @@ const Chat: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/');
+    navigate('/', {
+      state: {
+        userId: userId,
+        publicKey: publicKey,
+        privateKey: privateKey
+      }
+    });
   };
 
   return (
@@ -133,10 +154,12 @@ const Chat: React.FC = () => {
           </Button>
         </CardHeader>
         <CardContent className="p-6">
-          <ScrollArea className="h-80 w-full rounded-md border border-gray-300 p-4 overflow-y-auto">
+          <ScrollArea className="h-80 w-full rounded-md border border-gray-300 p-4 overflow-y-auto" ref={scrollRef}>
             {messages.map((msg: any, index: number) => (
-              <div key={index} className={`mb-4 ${msg.sender === 'Você' ? 'text-right' : 'text-left'}`}>
-                <span className="block text-sm font-semibold text-gray-700">{msg.sender}</span>
+              <div key={index} className={`mb-4 ${msg.senderId === elgamal.privateKey.x ? 'text-right' : 'text-left'}`}>
+                <span className="block text-sm font-semibold text-gray-700">
+                  {msg.senderId === elgamal.privateKey.x ? 'Você' : selectedUser}
+                </span>
                 <span className="block text-gray-800">{msg.content}</span>
               </div>
             ))}

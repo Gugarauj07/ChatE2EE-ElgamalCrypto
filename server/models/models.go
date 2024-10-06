@@ -14,8 +14,10 @@ type EncryptedMessage struct {
 }
 
 type ChatMessage struct {
-	SenderId string `json:"senderId"`
-	Content  string `json:"content"`
+	SenderId  string    `json:"senderId"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+	IsRead    bool      `json:"isRead"`
 }
 
 type PublicKey struct {
@@ -28,4 +30,19 @@ type User struct {
 	UserId       string    `json:"userId"`
 	PublicKey    PublicKey `json:"publicKey"`
 	LastActivity time.Time `json:"-"`
+}
+
+// SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
+type SendMessageRequest struct {
+	EncryptedMessage struct {
+		A string `json:"a"`
+		B string `json:"b"`
+	} `json:"encryptedMessage"`
+	SenderId         string `json:"senderId"`
+	ReceiverId       string `json:"receiverId"`
+}
+
+// ReceiveMessagesRequest representa a estrutura de requisição para receber mensagens
+type ReceiveMessagesRequest struct {
+	UserId string `json:"userId"`
 }

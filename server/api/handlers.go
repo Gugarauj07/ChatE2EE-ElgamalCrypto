@@ -1,13 +1,15 @@
 package api
 
 import (
-	"server/models"
-	"net/http"
 	"bytes"
 	"io/ioutil"
 	"log"
-	"time"
+	"net/http"
+	"server/models"
+	"sort"
 	"sync"
+	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,12 +17,17 @@ import (
 var users = make(map[string]models.User)
 var messages = make(map[string][]models.ChatMessage)
 var usersMutex = &sync.Mutex{}
+var chatHistory = make(map[string]map[string][]models.ChatMessage)
+var chatHistoryMutex = &sync.RWMutex{}
 
 const userTimeout = 5 * time.Minute
 
 // SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
 type SendMessageRequest struct {
-	EncryptedMessage string `json:"encryptedMessage"`
+	EncryptedMessage struct {
+		A string `json:"a"`
+		B string `json:"b"`
+	} `json:"encryptedMessage"`
 	SenderId         string `json:"senderId"`
 	ReceiverId       string `json:"receiverId"`
 }
@@ -143,11 +150,32 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 	message := models.ChatMessage{
-		SenderId: req.SenderId,
-		Content:  req.EncryptedMessage,
+		SenderId:  req.SenderId,
+		Content:   req.EncryptedMessage.A + "," + req.EncryptedMessage.B, // Combinamos A e B em uma string
+		Timestamp: time.Now(),
+		IsRead:    false,
 	}
-	messages[req.ReceiverId] = append(messages[req.ReceiverId], message)
+
+	chatHistoryMutex.Lock()
+	defer chatHistoryMutex.Unlock()
+
+	// Cria um ID único para o chat (ordenado alfabeticamente)
+	chatID := getChatID(req.SenderId, req.ReceiverId)
+
+	if _, exists := chatHistory[chatID]; !exists {
+		chatHistory[chatID] = make(map[string][]models.ChatMessage)
+	}
+
+	chatHistory[chatID][req.ReceiverId] = append(chatHistory[chatID][req.ReceiverId], message)
+
 	c.Status(http.StatusOK)
+}
+
+func getChatID(user1, user2 string) string {
+	if user1 < user2 {
+		return user1 + "_" + user2
+	}
+	return user2 + "_" + user1
 }
 
 // ReceiveMessages godoc
@@ -163,27 +191,35 @@ func SendMessage(c *gin.Context) {
 func ReceiveMessages(c *gin.Context) {
 	var req struct {
 		UserId string `json:"userId"`
+		OtherUserId string `json:"otherUserId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	usersMutex.Lock()
-	userMessages, exists := messages[req.UserId]
-	if !exists {
-		userMessages = []models.ChatMessage{} // Retorna um array vazio se não houver mensagens
-	} else {
-		delete(messages, req.UserId) // Limpa as mensagens após enviar
-	}
-	usersMutex.Unlock()
+	chatHistoryMutex.RLock()
+	defer chatHistoryMutex.RUnlock()
 
-	c.JSON(http.StatusOK, userMessages)
+	chatID := getChatID(req.UserId, req.OtherUserId)
+
+	var allMessages []models.ChatMessage
+	if chat, exists := chatHistory[chatID]; exists {
+		allMessages = append(allMessages, chat[req.UserId]...)
+		allMessages = append(allMessages, chat[req.OtherUserId]...)
+	}
+
+	// Ordena as mensagens por timestamp
+	sort.Slice(allMessages, func(i, j int) bool {
+		return allMessages[i].Timestamp.Before(allMessages[j].Timestamp)
+	})
+
+	c.JSON(http.StatusOK, allMessages)
 }
 
 // Disconnect godoc
 // @Summary Desconecta um usuário do servidor
-// @Description Remove um usuário do servidor
+// @Description Remove um usuário do servidor e seu histórico de chat
 // @Tags users
 // @Accept json
 // @Produce json
@@ -201,6 +237,9 @@ func Disconnect(c *gin.Context) {
 		return
 	}
 
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
 	if _, exists := users[req.UserId]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -209,10 +248,29 @@ func Disconnect(c *gin.Context) {
 	delete(users, req.UserId)
 	delete(messages, req.UserId)
 
-	log.Printf("User disconnected: UserId='%s'", req.UserId)
+	// Remover o histórico de chat do usuário
+	chatHistoryMutex.Lock()
+	defer chatHistoryMutex.Unlock()
+
+	for chatID, chat := range chatHistory {
+		if strings.Contains(chatID, req.UserId) {
+			delete(chatHistory, chatID)
+		} else {
+			for userID := range chat {
+				if userID == req.UserId {
+					delete(chat, userID)
+				}
+			}
+			if len(chat) == 0 {
+				delete(chatHistory, chatID)
+			}
+		}
+	}
+
+	log.Printf("User disconnected and chat history removed: UserId='%s'", req.UserId)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "User disconnected successfully",
+		"message": "User disconnected and chat history removed successfully",
 		"userId":  req.UserId,
 	})
 }

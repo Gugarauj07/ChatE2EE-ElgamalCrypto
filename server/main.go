@@ -20,7 +20,7 @@ func main() {
 
 	// Configure CORS
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:5173"} 
+	config.AllowOrigins = []string{"http://localhost:5173"}
 	r.Use(cors.New(config))
 
 	// Rotas

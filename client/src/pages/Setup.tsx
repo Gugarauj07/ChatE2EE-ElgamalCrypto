@@ -10,8 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { Search, MessageCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom' // Importando useNavigate
-import { LocationState } from '../types'; // Importando o tipo
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const Setup: React.FC = () => {
   const { toast } = useToast()
@@ -23,19 +22,21 @@ const Setup: React.FC = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate(); // Inicializando o navigate
+  const [userId, setUserId] = useState<string | null>(null);
+  const location = useLocation();
+  const locationState = location.state as any;
 
   useEffect(() => {
-    try {
-      const eg = new ElGamal();
-      setElgamal(eg);
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao gerar chaves iniciais",
-        description: "Por favor, tente novamente.",
-        duration: 5000,
-      })
-      console.error(err);
+    if (locationState?.userId) {
+      setUserId(locationState.userId);
+      setUsername(locationState.userId);
+      setConnected(true);
+      if (locationState.publicKey && locationState.privateKey) {
+        const eg = new ElGamal();
+        eg.setKeys(locationState.publicKey, locationState.privateKey);
+        setElgamal(eg);
+      }
+      fetchUsers();
     }
   }, []);
 
@@ -71,6 +72,7 @@ const Setup: React.FC = () => {
           y: Number(elgamal.publicKey.y)
         });
         setConnected(true);
+        setUserId(username); // Armazena o userId
         fetchUsers();
       } catch (error) {
         toast({
@@ -125,8 +127,15 @@ const Setup: React.FC = () => {
   };
 
   const handleStartChat = (user: string) => {
-    if (elgamal) {
-      navigate('/chat', { state: { selectedUser: user, elgamal } as LocationState });
+    if (elgamal && userId) {
+      navigate('/chat', {
+        state: {
+          selectedUser: user,
+          publicKey: elgamal.publicKey,
+          privateKey: elgamal.privateKey,
+          userId: userId // Passa o userId para o Chat
+        }
+      });
     }
   };
 

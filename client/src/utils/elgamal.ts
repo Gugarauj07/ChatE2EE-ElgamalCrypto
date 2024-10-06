@@ -1,5 +1,5 @@
 interface PublicKey {
-  p: string; // Usando string para representar BigInt
+  p: string;
   g: string;
   y: string;
 }
@@ -74,6 +74,17 @@ export class ElGamal {
     const sInv = this.modularInverse(s, pBig);
     const m = (bBig * sInv) % pBig;
     return this.bigIntToString(m);
+  }
+
+  /**
+   * Define as chaves pública e privada para o algoritmo ElGamal.
+   *
+   * @param publicKey A chave pública a ser definida.
+   * @param privateKey A chave privada a ser definida.
+   */
+  setKeys(publicKey: PublicKey, privateKey: PrivateKey): void {
+    this.publicKey = publicKey;
+    this.privateKey = privateKey;
   }
 
   /**
@@ -278,7 +289,13 @@ export class ElGamal {
    * @returns O BigInt correspondente.
    */
   private stringToBigInt(str: string): bigint {
-    return BigInt('0x' + Buffer.from(str, 'utf-8').toString('hex'));
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    let result = 0n;
+    for (let i = 0; i < bytes.length; i++) {
+      result = (result << 8n) + BigInt(bytes[i]);
+    }
+    return result;
   }
 
   /**
@@ -288,8 +305,12 @@ export class ElGamal {
    * @returns A string correspondente.
    */
   private bigIntToString(num: bigint): string {
-    let hex = num.toString(16);
-    if (hex.length % 2) hex = '0' + hex;
-    return Buffer.from(hex, 'hex').toString('utf-8');
+    const bytes = [];
+    while (num > 0n) {
+      bytes.unshift(Number(num & 255n));
+      num = num >> 8n;
+    }
+    const decoder = new TextDecoder();
+    return decoder.decode(new Uint8Array(bytes));
   }
 }
