@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ElGamal } from '../utils/elgamal';
-import { connectToServer, getUsers } from '../services/api';
+import { connectToServer, getUsers, disconnectUser } from '../services/api';
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const Setup: React.FC = () => {
   const [elgamal, setElgamal] = useState<ElGamal | null>(null);
@@ -8,15 +14,22 @@ const Setup: React.FC = () => {
   const [connected, setConnected] = useState(false);
   const [users, setUsers] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   useEffect(() => {
     const eg = new ElGamal();
     setElgamal(eg);
   }, []);
 
+  useEffect(() => {
+    const intervalId = setInterval(fetchUsers, 5000);
+    return () => clearInterval(intervalId);
+  }, [connected]);
+
   const handleGenerateKeys = () => {
     const eg = new ElGamal();
     setElgamal(eg);
+    setShowExplanation(true);
   };
 
   const handleConnect = async () => {
@@ -32,86 +45,121 @@ const Setup: React.FC = () => {
   };
 
   const fetchUsers = async () => {
-    try {
-      const userList = await getUsers();
-      setUsers(userList);
-    } catch (error) {
-      console.error('Erro ao obter usuários:', error);
+    if (connected) {
+      try {
+        const userList = await getUsers();
+        setUsers(userList.filter(user => user !== username));
+      } catch (error) {
+        console.error('Erro ao obter usuários:', error);
+      }
     }
   };
 
   const handleSelectUser = (user: string) => {
     setSelectedUser(user);
-    // Implementar a lógica de pareamento aqui
+  };
+
+  const handleDisconnect = async () => {
+    if (username) {
+      try {
+        await disconnectUser(username);
+        setConnected(false);
+        setSelectedUser(null);
+        setUsers([]);
+      } catch (error) {
+        console.error('Erro ao desconectar:', error);
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-      {!connected ? (
-        <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-          <h2 className="text-2xl mb-4">Configuração do Chat</h2>
-          <div className="mb-4">
-            <p className="mb-2">Chave Pública:</p>
-            <textarea
-              readOnly
-              value={elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
-              className="w-full p-2 border rounded"
-              rows={5}
-            />
-          </div>
-          <button
-            onClick={handleGenerateKeys}
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded mb-4"
-          >
-            Gerar Novas Chaves
-          </button>
-          <div className="mb-4">
-            <label className="block mb-2">Nome de Usuário:</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border rounded"
-              placeholder="Digite seu nome"
-            />
-          </div>
-          <button
-            onClick={handleConnect}
-            className="w-full bg-green-500 text-white py-2 px-4 rounded"
-          >
-            Conectar
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-          <h2 className="text-2xl mb-4">Usuários Disponíveis</h2>
-          <p className="mb-2">Nome: <strong>{username}</strong></p>
-          <p className="mb-4">Sua Chave Pública:</p>
-          <textarea
-            readOnly
-            value={elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
-            className="w-full p-2 border rounded mb-4"
-            rows={5}
-          />
-          <ul className="mb-4">
-            {users.map((user) => (
-              <li
-                key={user}
-                className="p-2 border rounded mb-2 cursor-pointer hover:bg-gray-200"
-                onClick={() => handleSelectUser(user)}
-              >
-                {user}
-              </li>
-            ))}
-          </ul>
-          {selectedUser && (
-            <div className="mt-4">
-              <p>Você selecionou: <strong>{selectedUser}</strong></p>
-              {/* Implementar a lógica de pareamento aqui */}
-            </div>
+    <div className="container mx-auto p-4">
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Configuração do Chat ElGamal</CardTitle>
+          <CardDescription>Configure suas chaves e conecte-se ao chat</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!connected ? (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium">Chave Pública:</h3>
+                  <pre className="mt-2 p-2 bg-muted rounded-md overflow-x-auto">
+                    {elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
+                  </pre>
+                </div>
+                <Button onClick={handleGenerateKeys} className="w-full">
+                  Gerar Novas Chaves
+                </Button>
+                {showExplanation && (
+                  <Alert>
+                    <AlertTitle>Processo de Geração de Chaves</AlertTitle>
+                    <AlertDescription>
+                      1. Gera um número primo grande 'p'<br />
+                      2. Encontra uma raiz primitiva 'g' módulo 'p'<br />
+                      3. Gera um número aleatório 'x' como chave privada<br />
+                      4. Calcula 'y = g^x mod p' como parte da chave pública
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Digite seu nome de usuário"
+                />
+                <Button onClick={handleConnect} className="w-full">
+                  Conectar
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Seu nome: <span className="font-bold">{username}</span></h3>
+                <h3 className="text-lg font-medium">Sua Chave Pública:</h3>
+                <pre className="mt-2 p-2 bg-muted rounded-md overflow-x-auto">
+                  {elgamal ? JSON.stringify(elgamal.publicKey, null, 2) : ''}
+                </pre>
+                <h3 className="text-lg font-medium">Usuários Disponíveis:</h3>
+                <ScrollArea className="h-[200px] w-full rounded-md border">
+                  {users.map((user) => (
+                    <div
+                      key={user}
+                      className={`flex items-center p-2 hover:bg-accent cursor-pointer ${
+                        selectedUser === user ? 'bg-accent' : ''
+                      }`}
+                      onClick={() => handleSelectUser(user)}
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={`https://avatar.vercel.sh/${user}.png`} alt={user} />
+                        <AvatarFallback>{user[0]}</AvatarFallback>
+                      </Avatar>
+                      <span className="ml-2">{user}</span>
+                    </div>
+                  ))}
+                </ScrollArea>
+                {selectedUser && (
+                  <Alert>
+                    <AlertTitle>Usuário Selecionado</AlertTitle>
+                    <AlertDescription>
+                      Você selecionou: <strong>{selectedUser}</strong>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </>
           )}
-        </div>
-      )}
+        </CardContent>
+        <CardFooter>
+          {connected && (
+            <Button onClick={handleDisconnect} variant="destructive" className="w-full">
+              Desconectar
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 };
