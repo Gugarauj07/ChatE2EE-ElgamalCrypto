@@ -1,12 +1,14 @@
 package models
 
-import "time"
+import (
+	"math/big"
+	"time"
+)
 
 type KeyPair struct {
-	PublicKey  int64 `json:"publicKey"`
-	PrivateKey int64 `json:"privateKey"`
+	PublicKey  *big.Int `json:"publicKey"`
+	PrivateKey *big.Int `json:"privateKey"`
 }
-
 
 type EncryptedMessage struct {
 	C1 string `json:"c1"`
@@ -21,15 +23,26 @@ type ChatMessage struct {
 }
 
 type PublicKey struct {
-	P int64 `json:"p"`
-	G int64 `json:"g"`
-	Y int64 `json:"y"`
+	P string `json:"p"`
+	G int64  `json:"g"`
+	Y string `json:"y"`
+}
+
+type PublicKeyJSON struct {
+	P interface{} `json:"p"`
+	G int64       `json:"g"`
+	Y interface{} `json:"y"`
+}
+
+type UserJSON struct {
+	UserId    string        `json:"userId"`
+	PublicKey PublicKeyJSON `json:"publicKey"`
 }
 
 type User struct {
 	UserId       string    `json:"userId"`
 	PublicKey    PublicKey `json:"publicKey"`
-	LastActivity time.Time `json:"-"`
+	LastActivity time.Time  `json:"-"`
 }
 
 // SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
@@ -38,8 +51,8 @@ type SendMessageRequest struct {
 		A string `json:"a"`
 		B string `json:"b"`
 	} `json:"encryptedMessage"`
-	SenderId         string `json:"senderId"`
-	ReceiverId       string `json:"receiverId"`
+	SenderId   string `json:"senderId"`
+	ReceiverId string `json:"receiverId"`
 }
 
 // ReceiveMessagesRequest representa a estrutura de requisição para receber mensagens

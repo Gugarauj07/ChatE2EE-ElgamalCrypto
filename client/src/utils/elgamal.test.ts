@@ -15,7 +15,7 @@ describe('ElGamal', () => {
   });
 
   test('Criptografia e descriptografia', () => {
-    const message = 'Hello, World!';
+    const message = 'ELGAMAL WEBCHAT CRIPTOGRAPHY';
     const encrypted = elgamal.encrypt(message, elgamal.publicKey);
     const decrypted = elgamal.decrypt(encrypted, elgamal.privateKey, elgamal.publicKey.p);
     expect(decrypted).toBe(message);

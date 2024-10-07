@@ -29,7 +29,7 @@ const Chat: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!selectedUser || !publicKey || !privateKey) {
+    if (!selectedUser || !publicKey || !privateKey || !userId) {
       toast({
         variant: "destructive",
         title: "Erro ao carregar chat",
@@ -111,9 +111,12 @@ const Chat: React.FC = () => {
 
     try {
       const encrypted = elgamal.encrypt(message, receiverPublicKey);
+      console.log(message)
+      console.log(encrypted)
+      console.log(receiverPublicKey)
       await sendMessage(encrypted, userId, selectedUser);
       setMessage('');
-      fetchMessages(); // Atualiza as mensagens imediatamente após enviar
+      fetchMessages();
     } catch (error) {
       toast({
         variant: "destructive",

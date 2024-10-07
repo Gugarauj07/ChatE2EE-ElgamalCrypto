@@ -313,10 +313,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "p": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "y": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },

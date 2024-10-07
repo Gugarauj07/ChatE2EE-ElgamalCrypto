@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 	"strings"
-
+	"strconv"
 	"github.com/gin-gonic/gin"
 )
 
@@ -52,17 +52,46 @@ func Connect(c *gin.Context) {
 	log.Printf("Raw request body: %s", string(body))
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var userJSON models.UserJSON
+	if err := c.ShouldBindJSON(&userJSON); err != nil {
 		log.Printf("Error binding JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	log.Printf("Parsed user data: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
+	user := models.User{
+		UserId: userJSON.UserId,
+		PublicKey: models.PublicKey{
+			G: userJSON.PublicKey.G,
+		},
+	}
 
-	if user.UserId == "" || user.PublicKey.P == 0 || user.PublicKey.G == 0 || user.PublicKey.Y == 0 {
-		log.Printf("Invalid user data: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
+	// Converter P para string
+	switch p := userJSON.PublicKey.P.(type) {
+	case float64:
+		user.PublicKey.P = strconv.FormatFloat(p, 'f', -1, 64)
+	case string:
+		user.PublicKey.P = p
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type for P"})
+		return
+	}
+
+	// Converter Y para string
+	switch y := userJSON.PublicKey.Y.(type) {
+	case float64:
+		user.PublicKey.Y = strconv.FormatFloat(y, 'f', -1, 64)
+	case string:
+		user.PublicKey.Y = y
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type for Y"})
+		return
+	}
+
+	log.Printf("Parsed user data: UserId='%s', PublicKey={P:%s, G:%d, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
+
+	if user.UserId == "" || user.PublicKey.P == "" || user.PublicKey.G == 0 || user.PublicKey.Y == "" {
+		log.Printf("Invalid user data: UserId='%s', PublicKey={P:%s, G:%d, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
 		return
 	}
@@ -78,7 +107,7 @@ func Connect(c *gin.Context) {
 	users[user.UserId] = user
 	usersMutex.Unlock()
 
-	log.Printf("User connected successfully: UserId='%s', PublicKey={P:%d, G:%d, Y:%d}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
+	log.Printf("User connected successfully: UserId='%s', PublicKey={P:%s, G:%d, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User connected successfully",

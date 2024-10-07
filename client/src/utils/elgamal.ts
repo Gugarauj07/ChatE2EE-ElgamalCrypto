@@ -1,4 +1,6 @@
-import { randomBytes } from 'crypto';
+// Importa o módulo crypto do Node.js se estiver em um ambiente de servidor
+const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+const crypto = isNode ? require('crypto') : window.crypto;
 
 interface PublicKey {
   p: string;
@@ -37,7 +39,7 @@ export class ElGamal {
    * Gera as chaves públicas e privadas para o algoritmo ElGamal.
    */
   generateKeys(): void {
-    const q = this.generateLargePrime(127); // p = 2q + 1, q = 127 bits
+    const q = this.generateLargePrime(255); // p = 2q + 1, q = 64 bits para melhor desempenho
     const p = 2n * q + 1n;
     const g = this.findPrimitiveRoot(p, q);
     const x = this.generateSecureRandomBigInt(1n, p - 2n);
@@ -136,7 +138,7 @@ export class ElGamal {
   }
 
   /**
-   * Gera um BigInt aleatório entre min e max (inclusive).
+   * Gera um BigInt aleatório entre min e max (inclusive) usando a API Web Crypto.
    *
    * @param min O valor mínimo.
    * @param max O valor máximo.
@@ -147,7 +149,7 @@ export class ElGamal {
     const byteLength = Math.ceil(range.toString(2).length / 8);
     let randomBigInt: bigint;
     do {
-      const randomBytes = randomBytesSync(byteLength);
+      const randomBytes = this.getRandomBytes(byteLength);
       randomBigInt = 0n;
       for (let i = 0; i < randomBytes.length; i++) {
         randomBigInt = (randomBigInt << 8n) + BigInt(randomBytes[i]);
@@ -157,14 +159,14 @@ export class ElGamal {
   }
 
   /**
-   * Gera um BigInt aleatório com um número específico de bits.
+   * Gera um BigInt aleatório com um número específico de bits usando a API Web Crypto.
    *
    * @param bitLength O número de bits.
    * @returns Um BigInt aleatório.
    */
   private randomBigInt(bitLength: number): bigint {
     const byteLength = Math.ceil(bitLength / 8);
-    const randomBytes = randomBytesSync(byteLength);
+    const randomBytes = this.getRandomBytes(byteLength);
     let randomBig = 0n;
     for (let i = 0; i < randomBytes.length; i++) {
       randomBig = (randomBig << 8n) + BigInt(randomBytes[i]);
@@ -244,24 +246,29 @@ export class ElGamal {
    * @returns O inverso modular.
    */
   private modularInverse(a: bigint, modulus: bigint): bigint {
+    if (modulus === 0n) throw new Error("Modulus cannot be zero");
+    if (modulus === 1n) return 0n;
+
     let m0 = modulus;
     let y = 0n;
     let x = 1n;
 
-    if (modulus === 1n) return 0n;
-
     while (a > 1n) {
+      // q é o quociente
       const q = a / modulus;
       let t = modulus;
 
+      // modulus é o resto agora, processo igual ao Algoritmo de Euclides
       modulus = a % modulus;
       a = t;
       t = y;
 
+      // Atualiza y e x
       y = x - q * y;
       x = t;
     }
 
+    // Certifica-se de que x é positivo
     if (x < 0n) x += m0;
 
     return x;
@@ -274,7 +281,9 @@ export class ElGamal {
    * @returns O BigInt correspondente.
    */
   private stringToBigInt(str: string): bigint {
-    return BigInt('0x' + Buffer.from(str, 'utf-8').toString('hex'));
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(str);
+    return BigInt('0x' + Array.from(encoded).map(b => b.toString(16).padStart(2, '0')).join(''));
   }
 
   /**
@@ -286,16 +295,20 @@ export class ElGamal {
   private bigIntToString(num: bigint): string {
     const hex = num.toString(16);
     const paddedHex = hex.padStart(Math.ceil(hex.length / 2) * 2, '0');
-    return Buffer.from(paddedHex, 'hex').toString('utf-8');
+    const bytes = new Uint8Array(paddedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+    const decoder = new TextDecoder();
+    return decoder.decode(bytes);
   }
-}
 
-/**
- * Função auxiliar para gerar bytes aleatórios.
- *
- * @param size O número de bytes a serem gerados.
- * @returns Um Uint8Array com bytes aleatórios.
- */
-function randomBytesSync(size: number): Uint8Array {
-  return Uint8Array.from(randomBytes(size));
+  /**
+   * Gera bytes aleatórios usando a API Web Crypto.
+   *
+   * @param size O número de bytes a serem gerados.
+   * @returns Um Uint8Array com bytes aleatórios.
+   */
+  private getRandomBytes(size: number): Uint8Array {
+    const array = new Uint8Array(size);
+    crypto.getRandomValues(array);
+    return array;
+  }
 }
