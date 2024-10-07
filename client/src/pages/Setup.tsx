@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { Search, MessageCircle } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { PublicKey, PrivateKey } from '../types';
 
 const Setup: React.FC = () => {
   const { toast } = useToast()
@@ -21,7 +22,7 @@ const Setup: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const navigate = useNavigate(); // Inicializando o navigate
+  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const location = useLocation();
   const locationState = location.state as any;
@@ -66,13 +67,14 @@ const Setup: React.FC = () => {
   const handleConnect = async () => {
     if (elgamal && username) {
       try {
+        // Enviando as chaves públicas como strings
         await connectToServer(username, {
-          p: Number(elgamal.publicKey.p),
-          g: Number(elgamal.publicKey.g),
-          y: Number(elgamal.publicKey.y)
+          p: elgamal.publicKey.p,
+          g: elgamal.publicKey.g,
+          y: elgamal.publicKey.y
         });
         setConnected(true);
-        setUserId(username); // Armazena o userId
+        setUserId(username);
         fetchUsers();
       } catch (error) {
         toast({
@@ -133,7 +135,7 @@ const Setup: React.FC = () => {
           selectedUser: user,
           publicKey: elgamal.publicKey,
           privateKey: elgamal.privateKey,
-          userId: userId // Passa o userId para o Chat
+          userId: userId
         }
       });
     }

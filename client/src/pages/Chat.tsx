@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft } from 'lucide-react';
-import { LocationState, ChatMessage, PublicKey, PrivateKey, EncryptedMessage } from '../types';
+import { LocationState, ChatMessage, PublicKey, EncryptedMessage } from '../types';
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
@@ -32,13 +32,18 @@ const Chat: React.FC = () => {
       if (encryptedMessages.length > 0) {
         const decryptedMessages = encryptedMessages.map((msg) => {
           try {
+            console.log('Mensagem criptografada:', msg.encryptedContent);
+            console.log('Chave privada:', privateKey);
+            console.log('Módulo p:', publicKey.p);
+            const decryptedContent = elGamal.decrypt(msg.encryptedContent, privateKey, publicKey.p);
+            console.log('Conteúdo descriptografado:', decryptedContent);
             return {
               ...msg,
-              content: elGamal.decrypt(msg.encryptedContent, privateKey, publicKey.p),
+              content: decryptedContent,
               isOwnMessage: msg.senderId === userId
             };
           } catch (decryptError) {
-            console.error('Erro ao descriptografar mensagem:', decryptError);
+            console.error('Erro detalhado ao descriptografar:', decryptError);
             return {
               ...msg,
               content: "Erro ao descriptografar mensagem",
@@ -96,7 +101,7 @@ const Chat: React.FC = () => {
       const encrypted: EncryptedMessage = elGamal.encrypt(message, receiverPublicKey);
       await sendMessage(encrypted, userId, selectedUser);
       setMessage('');
-      await fetchAndDecryptMessages(); // Agora pode ser chamada aqui
+      await fetchAndDecryptMessages();
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
     }

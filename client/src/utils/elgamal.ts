@@ -38,15 +38,30 @@ export class ElGamal {
   /**
    * Gera as chaves públicas e privadas para o algoritmo ElGamal.
    */
-  generateKeys(): void {
-    const q = this.generateLargePrime(255); // p = 2q + 1, q = 64 bits para melhor desempenho
-    const p = 2n * q + 1n;
+  generateKeys(): { publicKey: PublicKey; privateKey: PrivateKey } {
+    const bitLength = 256;
+    let p: bigint, q: bigint;
+    do {
+      q = this.generateLargePrime(bitLength - 1);
+      p = 2n * q + 1n;
+    } while (!this.isProbablePrime(p, 5));
+
     const g = this.findPrimitiveRoot(p, q);
-    const x = this.generateSecureRandomBigInt(1n, p - 2n);
+    const x = this.generateSecureRandomBigInt(2n, p - 2n);
     const y = this.modularExponentiation(g, x, p);
 
-    this.publicKey = { p: p.toString(), g: g.toString(), y: y.toString() };
-    this.privateKey = { x: x.toString() };
+    // Convertendo todos os valores para string antes de retornar
+    const publicKey: PublicKey = {
+      p: p.toString(),
+      g: g.toString(),
+      y: y.toString()
+    };
+    const privateKey: PrivateKey = { x: x.toString() };
+
+    this.publicKey = publicKey;
+    this.privateKey = privateKey;
+
+    return { publicKey, privateKey };
   }
 
   /**
@@ -84,14 +99,13 @@ export class ElGamal {
     const pBig = BigInt(p);
     const xBig = BigInt(privateKey.x);
 
-    // Verificação adicional para garantir que 'a' não é zero
     if (aBig === 0n) {
       throw new Error("Invalid encrypted message: 'a' cannot be zero");
     }
 
     const s = this.modularExponentiation(aBig, xBig, pBig);
+    console.log('Valor de s antes do inverso modular:', s.toString());
 
-    // Verificação adicional para garantir que 's' não é zero
     if (s === 0n) {
       throw new Error("Decryption error: 's' is zero");
     }
@@ -258,36 +272,26 @@ export class ElGamal {
    * @returns O inverso modular.
    */
   private modularInverse(a: bigint, m: bigint): bigint {
-    if (m === 1n) return 0n;
+    console.log('Calculando inverso modular para a:', a.toString(), 'm:', m.toString());
 
-    let m0 = m;
-    let y = 0n;
-    let x = 1n;
-
-    while (a > 1n) {
-      // q é o quociente
-      const q = a / m;
-      let t = m;
-
-      // m é o resto agora, processo igual ao Algoritmo de Euclides
-      m = a % m;
-      a = t;
-      t = y;
-
-      // Atualiza y e x
-      y = x - q * y;
-      x = t;
+    if (a === 0n || m === 0n) {
+      throw new Error("Inverso modular não existe para zero");
     }
 
-    // Certifica-se de que x é positivo
-    if (x < 0n) x += m0;
+    let [old_r, r] = [a, m];
+    let [old_s, s] = [1n, 0n];
 
-    // Verifica se o inverso existe
-    if ((a * x) % m0 !== 1n) {
-      throw new Error("Modular inverse does not exist");
+    while (r !== 0n) {
+      const quotient = old_r / r;
+      [old_r, r] = [r, old_r - quotient * r];
+      [old_s, s] = [s, old_s - quotient * s];
     }
 
-    return x;
+    if (old_r !== 1n) {
+      throw new Error("Inverso modular não existe");
+    }
+
+    return (old_s % m + m) % m;
   }
 
   /**

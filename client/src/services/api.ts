@@ -14,8 +14,16 @@ export const getUsers = async (): Promise<string[]> => {
   return response.data;
 };
 
-export const sendMessage = async (encryptedMessage: EncryptedMessage, senderId: string, receiverId: string): Promise<void> => {
-  await api.post('/send-message', { encryptedMessage, senderId, receiverId });
+export const sendMessage = async (encryptedMessage: EncryptedMessage, senderId: string, receiverId: string) => {
+  const response = await api.post('/send-message', {
+    encryptedMessage: {
+      a: encryptedMessage.a.toString(),
+      b: encryptedMessage.b.toString()
+    },
+    senderId,
+    receiverId
+  });
+  return response.data;
 };
 
 export const receiveMessages = async (userId: string, otherUserId: string): Promise<ChatMessage[]> => {
