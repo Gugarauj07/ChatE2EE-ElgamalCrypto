@@ -11,15 +11,15 @@ type KeyPair struct {
 }
 
 type EncryptedMessage struct {
-	C1 string `json:"c1"`
-	C2 string `json:"c2"`
+    A string `json:"a"`
+    B string `json:"b"`
 }
 
 type ChatMessage struct {
-	SenderId  string    `json:"senderId"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-	IsRead    bool      `json:"isRead"`
+    SenderId        string           `json:"senderId"`
+    EncryptedContent EncryptedMessage `json:"encryptedContent"`
+    Timestamp       time.Time        `json:"timestamp"`
+    IsRead          bool             `json:"isRead"`
 }
 
 type PublicKey struct {

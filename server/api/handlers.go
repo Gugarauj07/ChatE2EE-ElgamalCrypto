@@ -180,7 +180,10 @@ func SendMessage(c *gin.Context) {
 	}
 	message := models.ChatMessage{
 		SenderId:  req.SenderId,
-		Content:   req.EncryptedMessage.A + "," + req.EncryptedMessage.B, // Combinamos A e B em uma string
+		EncryptedContent: models.EncryptedMessage{
+			A: req.EncryptedMessage.A,
+			B: req.EncryptedMessage.B,
+		},
 		Timestamp: time.Now(),
 		IsRead:    false,
 	}
@@ -219,7 +222,7 @@ func getChatID(user1, user2 string) string {
 // @Router /receive-messages [post]
 func ReceiveMessages(c *gin.Context) {
 	var req struct {
-		UserId string `json:"userId"`
+		UserId      string `json:"userId"`
 		OtherUserId string `json:"otherUserId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -1,13 +1,13 @@
 import { ElGamal } from '../utils/elgamal';
 
 export interface PublicKey {
-  p: number;
-  g: number;
-  y: number;
+  p: string;
+  g: string;
+  y: string;
 }
 
 export interface PrivateKey {
-  x: number;
+  x: string;
 }
 
 export interface KeyPair {
@@ -16,13 +16,16 @@ export interface KeyPair {
 }
 
 export interface EncryptedMessage {
-  a: any;
-  b: any;
+  a: string;
+  b: string;
 }
 
 export interface ChatMessage {
-  sender: string;
-  content: string;
+  senderId: string;
+  encryptedContent: EncryptedMessage;
+  content?: string;
+  timestamp: string;
+  isOwnMessage: boolean;
 }
 
 export interface ReceivedMessage {
@@ -39,6 +42,7 @@ export interface EncryptionLogEntry {
 // Adicionando o tipo para o estado de navegação
 export interface LocationState {
   selectedUser: string;
-  publicKey: string;
-  privateKey: string;
+  publicKey: PublicKey;
+  privateKey: PrivateKey;
+  userId: string;
 }

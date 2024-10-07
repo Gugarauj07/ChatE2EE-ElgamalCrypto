@@ -2,40 +2,59 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sendMessage, receiveMessages, getPublicKey, sendHeartbeat } from '../services/api';
 import { ElGamal } from '../utils/elgamal';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useToast } from "@/hooks/use-toast"
-import { Toaster } from "@/components/ui/toaster"
-import { ArrowLeft } from 'lucide-react'
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowLeft } from 'lucide-react';
+import { LocationState, ChatMessage, PublicKey, PrivateKey, EncryptedMessage } from '../types';
 
 const Chat: React.FC = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedUser, publicKey, privateKey, userId } = location.state as any;
+  const { selectedUser, publicKey, privateKey, userId } = location.state as LocationState;
 
-  const [elgamal] = useState(() => {
+  const [elGamal] = useState(() => {
     const eg = new ElGamal();
     eg.setKeys(publicKey, privateKey);
     return eg;
   });
 
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
-  const [receiverPublicKey, setReceiverPublicKey] = useState<any>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [receiverPublicKey, setReceiverPublicKey] = useState<PublicKey | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const fetchAndDecryptMessages = async () => {
+    try {
+      const encryptedMessages = await receiveMessages(userId, selectedUser);
+      if (encryptedMessages.length > 0) {
+        const decryptedMessages = encryptedMessages.map((msg) => {
+          try {
+            return {
+              ...msg,
+              content: elGamal.decrypt(msg.encryptedContent, privateKey, publicKey.p),
+              isOwnMessage: msg.senderId === userId
+            };
+          } catch (decryptError) {
+            console.error('Erro ao descriptografar mensagem:', decryptError);
+            return {
+              ...msg,
+              content: "Erro ao descriptografar mensagem",
+              isOwnMessage: msg.senderId === userId
+            };
+          }
+        });
+        setMessages(decryptedMessages);
+      }
+    } catch (error) {
+      console.error('Erro ao receber mensagens:', error);
+    }
+  };
 
   useEffect(() => {
     if (!selectedUser || !publicKey || !privateKey || !userId) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar chat",
-        description: "Usuário ou chaves não fornecidas.",
-        duration: 5000,
-      });
       navigate('/');
       return;
     }
@@ -45,30 +64,24 @@ const Chat: React.FC = () => {
         const pubKey = await getPublicKey(selectedUser);
         setReceiverPublicKey(pubKey);
       } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao obter chave pública",
-          description: "Não foi possível obter a chave pública do usuário selecionado.",
-          duration: 5000,
-        });
         console.error('Erro ao obter chave pública:', error);
       }
     };
 
     fetchPublicKey();
-    fetchMessages();
-    const intervalId = setInterval(fetchMessages, 5000);
+    fetchAndDecryptMessages();
+    const intervalId = setInterval(fetchAndDecryptMessages, 5000);
 
     return () => clearInterval(intervalId);
-  }, [selectedUser]);
+  }, [selectedUser, publicKey, privateKey, userId, navigate, elGamal]);
 
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
-      sendHeartbeat(selectedUser);
+      sendHeartbeat(userId);
     }, 60000);
 
     return () => clearInterval(heartbeatInterval);
-  }, [selectedUser]);
+  }, [userId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -76,54 +89,15 @@ const Chat: React.FC = () => {
     }
   }, [messages]);
 
-  const fetchMessages = async () => {
-    try {
-      const receivedMessages = await receiveMessages(userId, selectedUser);
-      if (receivedMessages.length > 0) {
-        const decryptedMessages = receivedMessages.map((msg: any) => ({
-          ...msg,
-          content: elgamal.decrypt({ a: msg.content.split(',')[0], b: msg.content.split(',')[1] }, elgamal.privateKey, elgamal.publicKey.p),
-        }));
-        setMessages(decryptedMessages);
-      }
-    } catch (error) {
-      console.error('Erro ao receber mensagens:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao receber mensagens",
-        description: "Não foi possível buscar novas mensagens.",
-        duration: 5000,
-      });
-    }
-  };
-
   const handleSendMessage = async () => {
-    if (!message.trim()) return;
-    if (!receiverPublicKey) {
-      toast({
-        variant: "destructive",
-        title: "Chave pública indisponível",
-        description: "Não foi possível enviar a mensagem sem a chave pública do destinatário.",
-        duration: 5000,
-      });
-      return;
-    }
+    if (!message.trim() || !receiverPublicKey) return;
 
     try {
-      const encrypted = elgamal.encrypt(message, receiverPublicKey);
-      console.log(message)
-      console.log(encrypted)
-      console.log(receiverPublicKey)
+      const encrypted: EncryptedMessage = elGamal.encrypt(message, receiverPublicKey);
       await sendMessage(encrypted, userId, selectedUser);
       setMessage('');
-      fetchMessages();
+      await fetchAndDecryptMessages(); // Agora pode ser chamada aqui
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao enviar mensagem",
-        description: "Não foi possível enviar a mensagem. Tente novamente.",
-        duration: 5000,
-      });
       console.error('Erro ao enviar mensagem:', error);
     }
   };
@@ -158,12 +132,15 @@ const Chat: React.FC = () => {
         </CardHeader>
         <CardContent className="p-6">
           <ScrollArea className="h-80 w-full rounded-md border border-gray-300 p-4 overflow-y-auto" ref={scrollRef}>
-            {messages.map((msg: any, index: number) => (
-              <div key={index} className={`mb-4 ${msg.senderId === elgamal.privateKey.x ? 'text-right' : 'text-left'}`}>
+            {messages.map((msg: ChatMessage, index: number) => (
+              <div key={index} className={`mb-4 ${msg.isOwnMessage ? 'text-right' : 'text-left'}`}>
                 <span className="block text-sm font-semibold text-gray-700">
-                  {msg.senderId === elgamal.privateKey.x ? 'Você' : selectedUser}
+                  {msg.isOwnMessage ? 'Você' : selectedUser}
                 </span>
                 <span className="block text-gray-800">{msg.content}</span>
+                <span className="block text-xs text-gray-500">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </span>
               </div>
             ))}
           </ScrollArea>
@@ -175,7 +152,7 @@ const Chat: React.FC = () => {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Digite sua mensagem..."
             className="flex-grow border border-gray-300 focus:border-blue-600 focus:ring-blue-600"
-            onKeyPress={(e: any) => {
+            onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
               if (e.key === 'Enter') {
                 handleSendMessage();
               }
@@ -186,7 +163,6 @@ const Chat: React.FC = () => {
           </Button>
         </CardFooter>
       </Card>
-      <Toaster />
     </div>
   );
 };

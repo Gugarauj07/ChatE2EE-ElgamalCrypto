@@ -83,7 +83,19 @@ export class ElGamal {
     const bBig = BigInt(b);
     const pBig = BigInt(p);
     const xBig = BigInt(privateKey.x);
+
+    // Verificação adicional para garantir que 'a' não é zero
+    if (aBig === 0n) {
+      throw new Error("Invalid encrypted message: 'a' cannot be zero");
+    }
+
     const s = this.modularExponentiation(aBig, xBig, pBig);
+
+    // Verificação adicional para garantir que 's' não é zero
+    if (s === 0n) {
+      throw new Error("Decryption error: 's' is zero");
+    }
+
     const sInv = this.modularInverse(s, pBig);
     const m = (bBig * sInv) % pBig;
     return this.bigIntToString(m);
@@ -245,21 +257,20 @@ export class ElGamal {
    * @param modulus O módulo.
    * @returns O inverso modular.
    */
-  private modularInverse(a: bigint, modulus: bigint): bigint {
-    if (modulus === 0n) throw new Error("Modulus cannot be zero");
-    if (modulus === 1n) return 0n;
+  private modularInverse(a: bigint, m: bigint): bigint {
+    if (m === 1n) return 0n;
 
-    let m0 = modulus;
+    let m0 = m;
     let y = 0n;
     let x = 1n;
 
     while (a > 1n) {
       // q é o quociente
-      const q = a / modulus;
-      let t = modulus;
+      const q = a / m;
+      let t = m;
 
-      // modulus é o resto agora, processo igual ao Algoritmo de Euclides
-      modulus = a % modulus;
+      // m é o resto agora, processo igual ao Algoritmo de Euclides
+      m = a % m;
       a = t;
       t = y;
 
@@ -270,6 +281,11 @@ export class ElGamal {
 
     // Certifica-se de que x é positivo
     if (x < 0n) x += m0;
+
+    // Verifica se o inverso existe
+    if ((a * x) % m0 !== 1n) {
+      throw new Error("Modular inverse does not exist");
+    }
 
     return x;
   }

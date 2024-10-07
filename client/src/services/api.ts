@@ -20,7 +20,7 @@ export const sendMessage = async (encryptedMessage: EncryptedMessage, senderId: 
 
 export const receiveMessages = async (userId: string, otherUserId: string): Promise<ChatMessage[]> => {
   try {
-    const response = await api.post<any[]>('/receive-messages', { userId, otherUserId });
+    const response = await api.post<ChatMessage[]>('/receive-messages', { userId, otherUserId });
     return response.data || [];
   } catch (error) {
     console.error('Erro ao receber mensagens:', error);
