@@ -26,7 +26,6 @@ func main() {
 	config.AllowOrigins = []string{"http://localhost:5173"}
 	r.Use(cors.New(config))
 
-
 	// Rota do Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -37,7 +36,7 @@ func main() {
 	api.SetupRoutes(r)
 
 	// Inicialize o WebSocket
-	ws.SetupRoutes(r)
+	ws.WSRoutes(r)
 
 	r.Run(":3000")
 }

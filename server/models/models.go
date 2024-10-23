@@ -14,11 +14,12 @@ type EncryptedMessage struct {
 
 // ChatMessage representa uma mensagem no chat
 type ChatMessage struct {
-	ID                uint            `gorm:"primaryKey" json:"id"`
-	SenderId          string          `json:"senderId"`
-	EncryptedContent  EncryptedMessage `json:"encryptedContent" gorm:"-"`
-	EncryptedContentRaw string        `json:"-" gorm:"type:JSON"`
-	Timestamp         time.Time       `json:"timestamp"`
+	ID                 uint             `gorm:"primaryKey" json:"id"`
+	SenderId           string           `json:"senderId"`
+	RecipientId        string           `json:"recipientId"` // Novo campo para identificar o destinatário
+	EncryptedContent   EncryptedMessage `json:"encryptedContent" gorm:"-"`
+	EncryptedContentRaw string          `json:"-" gorm:"type:JSON"`
+	Timestamp          time.Time        `json:"timestamp"`
 }
 
 // BeforeSave é um hook que é chamado antes de salvar um ChatMessage
@@ -55,10 +56,12 @@ type User struct {
 
 // Group representa um grupo de chat
 type Group struct {
-	GroupID    string   `json:"groupId" gorm:"primaryKey"`
-	Members    []string `json:"members" gorm:"-"`
-	MembersRaw string   `json:"-" gorm:"type:JSON"`
-	SenderKey  string   `json:"senderKey"` // Chave do remetente criptografada
+	GroupID    string    `json:"groupId" gorm:"primaryKey"`
+	Members    []string  `json:"members" gorm:"-"`
+	MembersRaw string    `json:"-" gorm:"type:JSON"`
+	SenderKey  string    `json:"senderKey"` // Chave do remetente criptografada
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 // BeforeSave é um hook que é chamado antes de salvar um Group

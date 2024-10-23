@@ -17,6 +17,14 @@ func SetupRoutes(router *gin.Engine) {
 		// Gestão de Usuários
 		api.GET("/users/:userId", handlers.GetUserHandler)
 		api.PUT("/users/:userId", handlers.UpdateUserHandler)
-		// Adicione mais rotas aqui conforme necessário
+
+		// Gestão de Mensagens
+		api.POST("/messages/send", handlers.SendMessageHandler)
+		api.GET("/messages", handlers.GetMessagesHandler)
+
+		// Gestão de Grupos
+		api.PUT("/groups/:groupId", handlers.EditGroupHandler)
+		api.DELETE("/groups/:groupId", handlers.DeleteGroupHandler)
+		api.POST("/groups", handlers.CreateGroupHandler)
 	}
 }
