@@ -55,6 +55,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/create-group": {
+            "post": {
+                "description": "Cria um grupo com um ID e membros especificados",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "summary": "Cria um novo grupo",
+                "parameters": [
+                    {
+                        "description": "Informações do grupo",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.CreateGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/disconnect": {
             "post": {
                 "description": "Remove um usuário do servidor e seu histórico de chat",
@@ -259,6 +314,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.CreateGroupRequest": {
+            "type": "object",
+            "properties": {
+                "groupId": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "api.ReceiveMessagesRequest": {
             "type": "object",
             "properties": {
@@ -292,11 +361,8 @@ const docTemplate = `{
         "models.ChatMessage": {
             "type": "object",
             "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "isRead": {
-                    "type": "boolean"
+                "encryptedContent": {
+                    "$ref": "#/definitions/models.EncryptedMessage"
                 },
                 "senderId": {
                     "type": "string"
@@ -306,11 +372,22 @@ const docTemplate = `{
                 }
             }
         },
+        "models.EncryptedMessage": {
+            "type": "object",
+            "properties": {
+                "a": {
+                    "type": "string"
+                },
+                "b": {
+                    "type": "string"
+                }
+            }
+        },
         "models.PublicKey": {
             "type": "object",
             "properties": {
                 "g": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "p": {
                     "type": "string"

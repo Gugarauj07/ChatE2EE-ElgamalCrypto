@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  api.CreateGroupRequest:
+    properties:
+      groupId:
+        type: string
+      members:
+        items:
+          type: string
+        type: array
+    type: object
   api.ReceiveMessagesRequest:
     properties:
       userId:
@@ -21,19 +30,24 @@ definitions:
     type: object
   models.ChatMessage:
     properties:
-      content:
-        type: string
-      isRead:
-        type: boolean
+      encryptedContent:
+        $ref: '#/definitions/models.EncryptedMessage'
       senderId:
         type: string
       timestamp:
         type: string
     type: object
+  models.EncryptedMessage:
+    properties:
+      a:
+        type: string
+      b:
+        type: string
+    type: object
   models.PublicKey:
     properties:
       g:
-        type: integer
+        type: string
       p:
         type: string
       "y":
@@ -79,6 +93,42 @@ paths:
       summary: Conecta um usuário ao servidor
       tags:
       - users
+  /create-group:
+    post:
+      consumes:
+      - application/json
+      description: Cria um grupo com um ID e membros especificados
+      parameters:
+      - description: Informações do grupo
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cria um novo grupo
+      tags:
+      - groups
   /disconnect:
     post:
       consumes:

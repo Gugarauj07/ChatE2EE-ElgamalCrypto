@@ -2,7 +2,9 @@ package main
 
 import (
 	"server/api"
+	"server/db"
 	_ "server/docs"
+	"server/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -16,6 +18,7 @@ import (
 // @host localhost:3000
 // @BasePath /
 func main() {
+
 	r := gin.Default()
 
 	// Configure CORS
@@ -23,17 +26,18 @@ func main() {
 	config.AllowOrigins = []string{"http://localhost:5173"}
 	r.Use(cors.New(config))
 
-	// Rotas
-	r.POST("/connect", api.Connect)
-	r.POST("/disconnect", api.Disconnect)
-	r.GET("/users", api.GetUsers)
-	r.GET("/public-key/:userId", api.GetPublicKey)
-	r.POST("/send-message", api.SendMessage)
-	r.POST("/receive-messages", api.ReceiveMessages)
-	r.POST("/heartbeat", api.Heartbeat)
 
 	// Rota do Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Inicialize o banco de dados
+	db.Init()
+
+	// Inicialize as rotas da API
+	api.SetupRoutes(r)
+
+	// Inicialize o WebSocket
+	ws.SetupRoutes(r)
 
 	r.Run(":3000")
 }
