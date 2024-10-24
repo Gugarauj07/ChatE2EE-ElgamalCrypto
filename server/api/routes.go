@@ -2,6 +2,7 @@ package api
 
 import (
 	"server/api/handlers"
+	"server/api/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,21 +11,26 @@ import (
 func SetupRoutes(router *gin.Engine) {
 	api := router.Group("/api")
 	{
-		// Autenticação
-		api.POST("/register", handlers.RegisterHandler) // @Summary Registrar usuário
-		api.POST("/login", handlers.LoginHandler)       // @Summary Login de usuário
+		// Rotas Públicas
+		api.POST("/register", handlers.RegisterHandler)
+		api.POST("/login", handlers.LoginHandler)
 
-		// Gestão de Usuários
-		api.GET("/users/:userId", handlers.GetUserHandler) // @Summary Obter detalhes do usuário
-		api.PUT("/users/:userId", handlers.UpdateUserHandler) // @Summary Atualizar informações do usuário
+		// Rotas Protegidas
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			// Gestão de Usuários
+			protected.GET("/users/:userId", handlers.GetUserHandler)
+			protected.PUT("/users/:userId", handlers.UpdateUserHandler)
 
-		// Gestão de Mensagens
-		api.POST("/messages/send", handlers.SendMessageHandler) // @Summary Enviar uma mensagem
-		api.GET("/messages", handlers.GetMessagesHandler)       // @Summary Recuperar mensagens
+			// Gestão de Mensagens
+			protected.POST("/messages/send", handlers.SendMessageHandler)
+			protected.GET("/messages", handlers.GetMessagesHandler)
 
-		// Gestão de Grupos
-		api.POST("/groups", handlers.CreateGroupHandler)       // @Summary Criar grupo
-		api.PUT("/groups/:groupId", handlers.EditGroupHandler) // @Summary Editar grupo
-		api.DELETE("/groups/:groupId", handlers.DeleteGroupHandler) // @Summary Deletar grupo
+			// Gestão de Grupos com Autorização
+			protected.POST("/groups", handlers.CreateGroupHandler)
+			protected.PUT("/groups/:groupId", handlers.EditGroupHandler).Use(middleware.IsGroupMember())
+			protected.DELETE("/groups/:groupId", handlers.DeleteGroupHandler).Use(middleware.IsGroupMember())
+		}
 	}
 }

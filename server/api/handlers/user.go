@@ -18,7 +18,7 @@ import (
 // @Param userId path string true "ID do usuário"
 // @Success 200 {object} models.User
 // @Failure 404 {object} map[string]string
-// @Router api/users/{userId} [get]
+// @Router users/{userId} [get]
 func GetUserHandler(c *gin.Context) {
 	userId := c.Param("userId")
 
@@ -48,7 +48,7 @@ func GetUserHandler(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router api/users/{userId} [put]
+// @Router users/{userId} [put]
 func UpdateUserHandler(c *gin.Context) {
 	userId := c.Param("userId")
 

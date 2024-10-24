@@ -3,19 +3,30 @@ package ws
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"time"
+
 	"server/db"
 	"server/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/websocket"
 )
 
-// Upgrader para upgrades de conexão WebSocket
+var jwtSecret []byte
+
+func init() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		panic("JWT_SECRET não está definido")
+	}
+	jwtSecret = []byte(secret)
+}
+
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	// Permitir CORS para WebSockets
 	CheckOrigin: func(r *http.Request) bool {
+		// Implementar verificação de origem se necessário
 		return true
 	},
 }
@@ -32,37 +43,80 @@ var Broadcast = make(chan models.ChatMessage)
 // @Tags WebSocket
 // @Accept json
 // @Produce json
-// @Param userId query string true "ID do usuário"
+// @Param token query string true "JWT Token"
 // @Success 101 {object} map[string]string
 // @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /ws [get]
 func WebSocketHandler(c *gin.Context) {
-	userId := c.Query("userId") // Recebe o userId como query parameter
-	if userId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "userId é obrigatório"})
+	tokenString := c.Query("token")
+	if tokenString == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token ausente"})
 		return
 	}
 
+	// Parse e validação do token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("método de assinatura inválido")
+		}
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Reivindicações de token inválidas"})
+		return
+	}
+
+	userId, ok := claims["userId"].(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Reivindicações de usuário inválidas"})
+		return
+	}
+
+	// Atualiza o último horário de atividade do usuário
+	if err := db.DB.Model(&models.User{}).Where("user_id = ?", userId).Update("last_activity", time.Now()).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar atividade do usuário"})
+		return
+	}
+
+	// Upgrade da conexão HTTP para WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao estabelecer WebSocket"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao estabelecer conexão WebSocket"})
 		return
 	}
-	defer conn.Close()
 
+	// Armazena a conexão no mapa de clientes
 	Clients[userId] = conn
-	fmt.Printf("Usuário %s conectado via WebSocket.\n", userId)
+
+	// Gerencia a conexão
+	go handleClient(userId, conn)
+}
+
+func handleClient(userId string, conn *websocket.Conn) {
+	defer func() {
+		conn.Close()
+		delete(Clients, userId)
+	}()
 
 	for {
-		var msg models.ChatMessage
-		err := conn.ReadJSON(&msg)
-		if err != nil {
-			delete(Clients, userId)
-			fmt.Printf("Usuário %s desconectado do WebSocket.\n", userId)
+		// Lê mensagens do cliente (implementação conforme necessidade)
+		var message interface{}
+		if err := conn.ReadJSON(&message); err != nil {
+			fmt.Printf("Erro ao ler mensagem do usuário %s: %v\n", userId, err)
 			break
 		}
-		Broadcast <- msg
+
+		// Processa a mensagem recebida (implementação conforme necessidade)
+		fmt.Printf("Mensagem recebida de %s: %v\n", userId, message)
 	}
 }
 

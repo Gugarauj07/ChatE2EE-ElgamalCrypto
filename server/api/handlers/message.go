@@ -27,7 +27,7 @@ type SendMessageRequest struct {
 // @Success 201 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router api/messages/send [post]
+// @Router messages/send [post]
 func SendMessageHandler(c *gin.Context) {
 	var req SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -96,7 +96,7 @@ func SendMessageHandler(c *gin.Context) {
 // @Success 200 {array} models.ChatMessage
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router api/messages [get]
+// @Router messages [get]
 func GetMessagesHandler(c *gin.Context) {
 	userId, exists := c.Get("userId")
 	if !exists {
