@@ -14,15 +14,15 @@ type EncryptedMessage struct {
 
 // ChatMessage representa uma mensagem no chat
 type ChatMessage struct {
-	ID                 uint             `gorm:"primaryKey" json:"id"`
-	SenderId           string           `json:"senderId"`
-	RecipientId        string           `json:"recipientId"` // Novo campo para identificar o destinatário
-	EncryptedContent   EncryptedMessage `json:"encryptedContent" gorm:"-"`
-	EncryptedContentRaw string          `json:"-" gorm:"type:JSON"`
-	Timestamp          time.Time        `json:"timestamp"`
+	ID                  uint             `gorm:"primaryKey" json:"id"`
+	SenderId            string           `json:"senderId"`
+	RecipientId         string           `json:"recipientId"` // Identifica o destinatário (usuário ou grupo)
+	EncryptedContent    EncryptedMessage `json:"encryptedContent" gorm:"-"`
+	EncryptedContentRaw string           `json:"-" gorm:"type:JSON"`
+	Timestamp           time.Time        `json:"timestamp"`
 }
 
-// BeforeSave é um hook que é chamado antes de salvar um ChatMessage
+// BeforeSave é um hook chamado antes de salvar um ChatMessage
 func (c *ChatMessage) BeforeSave(tx *gorm.DB) (err error) {
 	bytes, err := json.Marshal(c.EncryptedContent)
 	if err != nil {
@@ -32,7 +32,7 @@ func (c *ChatMessage) BeforeSave(tx *gorm.DB) (err error) {
 	return
 }
 
-// AfterFind é um hook que é chamado depois de recuperar um ChatMessage
+// AfterFind é um hook chamado depois de recuperar um ChatMessage
 func (c *ChatMessage) AfterFind(tx *gorm.DB) (err error) {
 	err = json.Unmarshal([]byte(c.EncryptedContentRaw), &c.EncryptedContent)
 	return
@@ -48,7 +48,7 @@ type PublicKey struct {
 // User representa um usuário no sistema
 type User struct {
 	UserId       string    `json:"userId" gorm:"primaryKey"`
-	Username     string    `json:"username"`     // Novo campo para nome de usuário
+	Username     string    `json:"username"`     // Nome de usuário
 	PasswordHash string    `json:"-"`            // Hash da senha (não exposto via JSON)
 	PublicKey    PublicKey `json:"publicKey" gorm:"embedded"`
 	LastActivity time.Time `json:"-"`
@@ -64,7 +64,7 @@ type Group struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-// BeforeSave é um hook que é chamado antes de salvar um Group
+// BeforeSave é um hook chamado antes de salvar um Group
 func (g *Group) BeforeSave(tx *gorm.DB) (err error) {
 	data, err := json.Marshal(g.Members)
 	if err != nil {
@@ -74,8 +74,18 @@ func (g *Group) BeforeSave(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// AfterFind é um hook que é chamado depois de recuperar um Group
+// AfterFind é um hook chamado depois de recuperar um Group
 func (g *Group) AfterFind(tx *gorm.DB) (err error) {
 	err = json.Unmarshal([]byte(g.MembersRaw), &g.Members)
 	return
+}
+
+// GroupSenderKey representa a sender key criptografada para um usuário em um grupo
+type GroupSenderKey struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	GroupID      string    `json:"groupId"`
+	UserID       string    `json:"userId"`
+	EncryptedKey string    `json:"encryptedKey"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }

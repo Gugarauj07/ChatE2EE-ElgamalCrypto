@@ -1,37 +1,78 @@
 basePath: /
 definitions:
-  api.CreateGroupRequest:
+  handlers.CreateGroupRequest:
     properties:
       groupId:
         type: string
       members:
+        description: Lista de userIds
         items:
           type: string
         type: array
+      senderKey:
+        description: Sender key em texto simples
+        type: string
+    required:
+    - groupId
+    - members
+    - senderKey
     type: object
-  api.ReceiveMessagesRequest:
+  handlers.EditGroupRequest:
     properties:
-      userId:
+      members:
+        description: Nova lista de userIds
+        items:
+          type: string
+        type: array
+      senderKey:
+        description: Nova sender key em texto simples
         type: string
     type: object
-  api.SendMessageRequest:
+  handlers.LoginRequest:
     properties:
-      encryptedMessage:
-        properties:
-          a:
-            type: string
-          b:
-            type: string
-        type: object
-      receiverId:
+      password:
         type: string
-      senderId:
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.SendMessageRequest:
+    properties:
+      encryptedContent:
+        $ref: '#/definitions/models.EncryptedMessage'
+      recipientId:
+        description: Pode ser userId ou groupId
+        type: string
+    required:
+    - encryptedContent
+    - recipientId
+    type: object
+  handlers.TokenResponse:
+    properties:
+      token:
         type: string
     type: object
   models.ChatMessage:
     properties:
       encryptedContent:
         $ref: '#/definitions/models.EncryptedMessage'
+      id:
+        type: integer
+      recipientId:
+        description: Identifica o destinatário (usuário ou grupo)
+        type: string
       senderId:
         type: string
       timestamp:
@@ -42,6 +83,22 @@ definitions:
       a:
         type: string
       b:
+        type: string
+    type: object
+  models.Group:
+    properties:
+      createdAt:
+        type: string
+      groupId:
+        type: string
+      members:
+        items:
+          type: string
+        type: array
+      senderKey:
+        description: Chave do remetente criptografada
+        type: string
+      updatedAt:
         type: string
     type: object
   models.PublicKey:
@@ -59,6 +116,9 @@ definitions:
         $ref: '#/definitions/models.PublicKey'
       userId:
         type: string
+      username:
+        description: Nome de usuário
+        type: string
     type: object
 host: localhost:3000
 info:
@@ -67,49 +127,23 @@ info:
   title: Chat API
   version: "1.0"
 paths:
-  /connect:
+  /groups:
     post:
       consumes:
       - application/json
-      description: Registra um novo usuário com seu ID e chave pública
+      description: Representa a requisição para criar um grupo
       parameters:
-      - description: Informações do usuário
+      - description: Dados do grupo
         in: body
-        name: user
+        name: group
         required: true
         schema:
-          $ref: '#/definitions/models.User'
+          $ref: '#/definitions/handlers.CreateGroupRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Conecta um usuário ao servidor
-      tags:
-      - users
-  /create-group:
-    post:
-      consumes:
-      - application/json
-      description: Cria um grupo com um ID e membros especificados
-      parameters:
-      - description: Informações do grupo
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.CreateGroupRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             additionalProperties:
               type: string
@@ -126,21 +160,65 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Cria um novo grupo
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       tags:
-      - groups
-  /disconnect:
-    post:
+      - Grupos
+  /groups/{groupId}:
+    delete:
       consumes:
       - application/json
-      description: Remove um usuário do servidor e seu histórico de chat
+      description: Deleta um grupo e suas sender keys associadas
       parameters:
-      - description: ID do usuário
+      - description: ID do grupo
+        in: path
+        name: groupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Deletar um grupo
+      tags:
+      - Grupos
+    put:
+      consumes:
+      - application/json
+      description: Edita um grupo existente com novos membros e/ou nova sender key
+      parameters:
+      - description: ID do grupo
+        in: path
+        name: groupId
+        required: true
+        type: string
+      - description: Dados do grupo
         in: body
-        name: userId
+        name: group
         required: true
         schema:
-          type: string
+          $ref: '#/definitions/handlers.EditGroupRequest'
       produces:
       - application/json
       responses:
@@ -162,12 +240,206 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Desconecta um usuário do servidor
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Editar um grupo
       tags:
-      - users
-  /public-key/{userId}:
+      - Grupos
+  /groups/update-sender-keys:
+    post:
+      consumes:
+      - application/json
+      description: Atualiza as sender keys para todos os membros do grupo
+      parameters:
+      - description: Dados do grupo
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/models.Group'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar sender keys
+      tags:
+      - Grupos
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Representa a requisição de login
+      parameters:
+      - description: Dados do usuário
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      tags:
+      - Autenticação
+  /messages:
     get:
-      description: Retorna a chave pública de um usuário específico
+      consumes:
+      - application/json
+      description: Recupera todas as mensagens enviadas e recebidas pelo usuário autenticado
+      parameters:
+      - description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ChatMessage'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Recuperar mensagens
+      tags:
+      - Mensagens
+  /messages/send:
+    post:
+      consumes:
+      - application/json
+      description: Envia uma mensagem criptografada para um usuário ou grupo
+      parameters:
+      - description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Dados da mensagem
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Enviar uma mensagem
+      tags:
+      - Mensagens
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Representa a requisição de registro
+      parameters:
+      - description: Dados do usuário
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      tags:
+      - Autenticação
+  /users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Obtém os detalhes de um usuário específico
       parameters:
       - description: ID do usuário
         in: path
@@ -180,85 +452,97 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/models.User'
         "404":
           description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Obtém a chave pública de um usuário
+      summary: Obter detalhes do usuário
       tags:
-      - users
-  /receive-messages:
-    post:
+      - Usuários
+    put:
       consumes:
       - application/json
-      description: Retorna as mensagens encriptadas para um usuário específico
+      description: Atualiza informações de um usuário específico
       parameters:
       - description: ID do usuário
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Dados do usuário
         in: body
-        name: request
+        name: user
         required: true
         schema:
-          $ref: '#/definitions/api.ReceiveMessagesRequest'
+          $ref: '#/definitions/models.User'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/models.ChatMessage'
-            type: array
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Recebe mensagens
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Atualizar informações do usuário
       tags:
-      - messages
-  /send-message:
-    post:
+      - Usuários
+  /ws:
+    get:
       consumes:
       - application/json
-      description: Envia uma mensagem encriptada para um usuário específico
+      description: Estabelece uma conexão WebSocket para o usuário
       parameters:
-      - description: Mensagem encriptada e IDs de remetente e destinatário
-        in: body
-        name: request
+      - description: ID do usuário
+        in: query
+        name: userId
         required: true
-        schema:
-          $ref: '#/definitions/api.SendMessageRequest'
+        type: string
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "101":
+          description: Switching Protocols
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Envia uma mensagem
-      tags:
-      - messages
-  /users:
-    get:
-      description: Retorna uma lista de IDs de todos os usuários conectados
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
+        "500":
+          description: Internal Server Error
           schema:
-            items:
+            additionalProperties:
               type: string
-            type: array
-      summary: Lista todos os usuários
+            type: object
+      summary: Conectar ao WebSocket
       tags:
-      - users
+      - WebSocket
+schemes:
+- http
 swagger: "2.0"

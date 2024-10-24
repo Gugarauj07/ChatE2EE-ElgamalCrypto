@@ -10,6 +10,15 @@ import (
 )
 
 // GetUserHandler obtém os detalhes de um usuário específico
+// @Summary Obter detalhes do usuário
+// @Description Obtém os detalhes de um usuário específico
+// @Tags Usuários
+// @Accept json
+// @Produce json
+// @Param userId path string true "ID do usuário"
+// @Success 200 {object} models.User
+// @Failure 404 {object} map[string]string
+// @Router api/users/{userId} [get]
 func GetUserHandler(c *gin.Context) {
 	userId := c.Param("userId")
 
@@ -28,6 +37,18 @@ func GetUserHandler(c *gin.Context) {
 }
 
 // UpdateUserHandler atualiza informações de um usuário
+// @Summary Atualizar informações do usuário
+// @Description Atualiza informações de um usuário específico
+// @Tags Usuários
+// @Accept json
+// @Produce json
+// @Param userId path string true "ID do usuário"
+// @Param user body models.User true "Dados do usuário"
+// @Success 200 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router api/users/{userId} [put]
 func UpdateUserHandler(c *gin.Context) {
 	userId := c.Param("userId")
 

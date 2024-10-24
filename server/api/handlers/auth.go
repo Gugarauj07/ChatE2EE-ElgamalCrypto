@@ -16,13 +16,13 @@ import (
 // Chave secreta para assinar os tokens JWT
 var jwtSecret = []byte("SeCrETa") // Substitua por uma chave segura em produção
 
-// RegisterRequest representa a requisição de registro
+
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginRequest representa a requisição de login
+
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -33,7 +33,17 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
-// RegisterHandler trata o registro de novos usuários
+// RegisterRequest representa a requisição de registro
+// @Description Representa a requisição de registro
+// @Tags Autenticação
+// @Accept json
+// @Produce json
+// @Param user body RegisterRequest true "Dados do usuário"
+// @Success 201 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router api/register [post]
 func RegisterHandler(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,7 +82,17 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Usuário registrado com sucesso"})
 }
 
-// LoginHandler trata o login de usuários
+// LoginRequest representa a requisição de login
+// @Description Representa a requisição de login
+// @Tags Autenticação
+// @Accept json
+// @Produce json
+// @Param user body LoginRequest true "Dados do usuário"
+// @Success 200 {object} TokenResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router api/login [post]
 func LoginHandler(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

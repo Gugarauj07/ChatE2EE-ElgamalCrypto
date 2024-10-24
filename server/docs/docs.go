@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/connect": {
+        "/groups": {
             "post": {
-                "description": "Registra um novo usuário com seu ID e chave pública",
+                "description": "Representa a requisição para criar um grupo",
                 "consumes": [
                     "application/json"
                 ],
@@ -25,63 +25,22 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "Grupos"
                 ],
-                "summary": "Conecta um usuário ao servidor",
                 "parameters": [
                     {
-                        "description": "Informações do usuário",
-                        "name": "user",
+                        "description": "Dados do grupo",
+                        "name": "group",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/handlers.CreateGroupRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/create-group": {
-            "post": {
-                "description": "Cria um grupo com um ID e membros especificados",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "groups"
-                ],
-                "summary": "Cria um novo grupo",
-                "parameters": [
-                    {
-                        "description": "Informações do grupo",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.CreateGroupRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -106,13 +65,22 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
-        "/disconnect": {
+        "/groups/update-sender-keys": {
             "post": {
-                "description": "Remove um usuário do servidor e seu histórico de chat",
+                "description": "Atualiza as sender keys para todos os membros do grupo",
                 "consumes": [
                     "application/json"
                 ],
@@ -120,17 +88,70 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "Grupos"
                 ],
-                "summary": "Desconecta um usuário do servidor",
+                "summary": "Atualizar sender keys",
                 "parameters": [
                     {
-                        "description": "ID do usuário",
-                        "name": "userId",
+                        "description": "Dados do grupo",
+                        "name": "group",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/models.Group"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/groups/{groupId}": {
+            "put": {
+                "description": "Edita um grupo existente com novos membros e/ou nova sender key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Grupos"
+                ],
+                "summary": "Editar um grupo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do grupo",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do grupo",
+                        "name": "group",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.EditGroupRequest"
                         }
                     }
                 ],
@@ -161,20 +182,321 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
-            }
-        },
-        "/public-key/{userId}": {
-            "get": {
-                "description": "Retorna a chave pública de um usuário específico",
+            },
+            "delete": {
+                "description": "Deleta um grupo e suas sender keys associadas",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "Grupos"
                 ],
-                "summary": "Obtém a chave pública de um usuário",
+                "summary": "Deletar um grupo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do grupo",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Representa a requisição de login",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Autenticação"
+                ],
+                "parameters": [
+                    {
+                        "description": "Dados do usuário",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/messages": {
+            "get": {
+                "description": "Recupera todas as mensagens enviadas e recebidas pelo usuário autenticado",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Mensagens"
+                ],
+                "summary": "Recuperar mensagens",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.ChatMessage"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/messages/send": {
+            "post": {
+                "description": "Envia uma mensagem criptografada para um usuário ou grupo",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Mensagens"
+                ],
+                "summary": "Enviar uma mensagem",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da mensagem",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SendMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/register": {
+            "post": {
+                "description": "Representa a requisição de registro",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Autenticação"
+                ],
+                "parameters": [
+                    {
+                        "description": "Dados do usuário",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{userId}": {
+            "get": {
+                "description": "Obtém os detalhes de um usuário específico",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Usuários"
+                ],
+                "summary": "Obter detalhes do usuário",
                 "parameters": [
                     {
                         "type": "string",
@@ -188,7 +510,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/models.User"
                         }
                     },
                     "404": {
@@ -201,11 +523,9 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/receive-messages": {
-            "post": {
-                "description": "Retorna as mensagens encriptadas para um usuário específico",
+            },
+            "put": {
+                "description": "Atualiza informações de um usuário específico",
                 "consumes": [
                     "application/json"
                 ],
@@ -213,17 +533,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "messages"
+                    "Usuários"
                 ],
-                "summary": "Recebe mensagens",
+                "summary": "Atualizar informações do usuário",
                 "parameters": [
                     {
+                        "type": "string",
                         "description": "ID do usuário",
-                        "name": "request",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do usuário",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.ReceiveMessagesRequest"
+                            "$ref": "#/definitions/models.User"
                         }
                     }
                 ],
@@ -231,9 +558,9 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.ChatMessage"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -245,13 +572,31 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
-        "/send-message": {
-            "post": {
-                "description": "Envia uma mensagem encriptada para um usuário específico",
+        "/ws": {
+            "get": {
+                "description": "Estabelece uma conexão WebSocket para o usuário",
                 "consumes": [
                     "application/json"
                 ],
@@ -259,23 +604,27 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "messages"
+                    "WebSocket"
                 ],
-                "summary": "Envia uma mensagem",
+                "summary": "Conectar ao WebSocket",
                 "parameters": [
                     {
-                        "description": "Mensagem encriptada e IDs de remetente e destinatário",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.SendMessageRequest"
-                        }
+                        "type": "string",
+                        "description": "ID do usuário",
+                        "name": "userId",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK"
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -285,26 +634,12 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
-                    }
-                }
-            }
-        },
-        "/users": {
-            "get": {
-                "description": "Retorna uma lista de IDs de todos os usuários conectados",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Lista todos os usuários",
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "array",
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "type": "string"
                             }
                         }
@@ -314,46 +649,96 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.CreateGroupRequest": {
+        "handlers.CreateGroupRequest": {
             "type": "object",
+            "required": [
+                "groupId",
+                "members",
+                "senderKey"
+            ],
             "properties": {
                 "groupId": {
                     "type": "string"
                 },
                 "members": {
+                    "description": "Lista de userIds",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "api.ReceiveMessagesRequest": {
-            "type": "object",
-            "properties": {
-                "userId": {
+                },
+                "senderKey": {
+                    "description": "Sender key em texto simples",
                     "type": "string"
                 }
             }
         },
-        "api.SendMessageRequest": {
+        "handlers.EditGroupRequest": {
             "type": "object",
             "properties": {
-                "encryptedMessage": {
-                    "type": "object",
-                    "properties": {
-                        "a": {
-                            "type": "string"
-                        },
-                        "b": {
-                            "type": "string"
-                        }
+                "members": {
+                    "description": "Nova lista de userIds",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
-                "receiverId": {
+                "senderKey": {
+                    "description": "Nova sender key em texto simples",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
                     "type": "string"
                 },
-                "senderId": {
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SendMessageRequest": {
+            "type": "object",
+            "required": [
+                "encryptedContent",
+                "recipientId"
+            ],
+            "properties": {
+                "encryptedContent": {
+                    "$ref": "#/definitions/models.EncryptedMessage"
+                },
+                "recipientId": {
+                    "description": "Pode ser userId ou groupId",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
                     "type": "string"
                 }
             }
@@ -363,6 +748,13 @@ const docTemplate = `{
             "properties": {
                 "encryptedContent": {
                     "$ref": "#/definitions/models.EncryptedMessage"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "recipientId": {
+                    "description": "Identifica o destinatário (usuário ou grupo)",
+                    "type": "string"
                 },
                 "senderId": {
                     "type": "string"
@@ -379,6 +771,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "b": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Group": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "groupId": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "senderKey": {
+                    "description": "Chave do remetente criptografada",
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -405,6 +821,10 @@ const docTemplate = `{
                 },
                 "userId": {
                     "type": "string"
+                },
+                "username": {
+                    "description": "Nome de usuário",
+                    "type": "string"
                 }
             }
         }
@@ -416,7 +836,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:3000",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"http"},
 	Title:            "Chat API",
 	Description:      "Esta é uma API de servidor de chat simples.",
 	InfoInstanceName: "swagger",

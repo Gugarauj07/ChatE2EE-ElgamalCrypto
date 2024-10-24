@@ -1,13 +1,16 @@
 package ws
 
 import (
+	"fmt"
 	"net/http"
+	"server/db"
 	"server/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
+// Upgrader para upgrades de conexão WebSocket
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -17,15 +20,25 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Clients conectados
-var clients = make(map[string]*websocket.Conn)
+// Clients conectados (exportado para acesso externo)
+var Clients = make(map[string]*websocket.Conn)
 
 // Broadcast canal para mensagens
-var broadcast = make(chan models.ChatMessage)
+var Broadcast = make(chan models.ChatMessage)
 
 // WebSocketHandler gerencia a conexão WebSocket
+// @Summary Conectar ao WebSocket
+// @Description Estabelece uma conexão WebSocket para o usuário
+// @Tags WebSocket
+// @Accept json
+// @Produce json
+// @Param userId query string true "ID do usuário"
+// @Success 101 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /ws [get]
 func WebSocketHandler(c *gin.Context) {
-	userId := c.Query("userId")
+	userId := c.Query("userId") // Recebe o userId como query parameter
 	if userId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userId é obrigatório"})
 		return
@@ -33,33 +46,46 @@ func WebSocketHandler(c *gin.Context) {
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao estabelecer WebSocket"})
 		return
 	}
 	defer conn.Close()
 
-	clients[userId] = conn
+	Clients[userId] = conn
+	fmt.Printf("Usuário %s conectado via WebSocket.\n", userId)
 
 	for {
 		var msg models.ChatMessage
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			delete(clients, userId)
+			delete(Clients, userId)
+			fmt.Printf("Usuário %s desconectado do WebSocket.\n", userId)
 			break
 		}
-		broadcast <- msg
+		Broadcast <- msg
 	}
 }
 
-// SetupRoutes configura as rotas de WebSocket
+// WSRoutes configura as rotas de WebSocket
 func WSRoutes(router *gin.Engine) {
 	router.GET("/ws", WebSocketHandler)
 
 	// Goroutine para broadcast de mensagens
 	go func() {
 		for {
-			msg := <-broadcast
-			if conn, ok := clients[msg.RecipientId]; ok {
+			msg := <-Broadcast
+			if conn, ok := Clients[msg.RecipientId]; ok {
 				conn.WriteJSON(msg)
+			} else {
+				// Se RecipientId for um grupo, enviar para todos os membros
+				var group models.Group
+				if err := db.DB.Where("group_id = ?", msg.RecipientId).First(&group).Error; err == nil {
+					for _, memberId := range group.Members {
+						if memberConn, exists := Clients[memberId]; exists {
+							memberConn.WriteJSON(msg)
+						}
+					}
+				}
 			}
 		}
 	}()

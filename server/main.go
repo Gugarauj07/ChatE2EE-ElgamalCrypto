@@ -17,8 +17,8 @@ import (
 // @description Esta é uma API de servidor de chat simples.
 // @host localhost:3000
 // @BasePath /
+// @schemes http
 func main() {
-
 	r := gin.Default()
 
 	// Configure CORS
