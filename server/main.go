@@ -22,7 +22,7 @@ import (
 // @version 1.0
 // @description Esta é uma API de servidor de chat simples.
 // @host localhost:3000
-// @BasePath /
+// @BasePath /api
 // @schemes http
 func main() {
 	// Configurar Logger

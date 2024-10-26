@@ -1,4 +1,4 @@
-basePath: /
+basePath: /api
 definitions:
   handlers.CreateGroupRequest:
     properties:
@@ -16,17 +16,6 @@ definitions:
     - groupId
     - members
     - senderKey
-    type: object
-  handlers.EditGroupRequest:
-    properties:
-      members:
-        description: Nova lista de userIds
-        items:
-          type: string
-        type: array
-      senderKey:
-        description: Nova sender key em texto simples
-        type: string
     type: object
   handlers.LoginRequest:
     properties:
@@ -61,7 +50,11 @@ definitions:
     type: object
   handlers.TokenResponse:
     properties:
+      publicKey:
+        $ref: '#/definitions/models.PublicKey'
       token:
+        type: string
+      userId:
         type: string
     type: object
   models.ChatMessage:
@@ -128,6 +121,40 @@ info:
   version: "1.0"
 paths:
   /groups:
+    get:
+      consumes:
+      - application/json
+      description: Obtém uma lista de grupos dos quais o usuário autenticado faz parte
+      parameters:
+      - description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Group'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Listar grupos do usuário
+      tags:
+      - Grupos
     post:
       consumes:
       - application/json
@@ -201,52 +228,6 @@ paths:
               type: string
             type: object
       summary: Deletar um grupo
-      tags:
-      - Grupos
-    put:
-      consumes:
-      - application/json
-      description: Edita um grupo existente com novos membros e/ou nova sender key
-      parameters:
-      - description: ID do grupo
-        in: path
-        name: groupId
-        required: true
-        type: string
-      - description: Dados do grupo
-        in: body
-        name: group
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.EditGroupRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Editar um grupo
       tags:
       - Grupos
   /groups/update-sender-keys:
@@ -435,6 +416,42 @@ paths:
             type: object
       tags:
       - Autenticação
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Obtém uma lista de todos os usuários cadastrados, excluindo o usuário
+        autenticado
+      parameters:
+      - description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.User'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obter lista de usuários
+      tags:
+      - Usuários
   /users/{userId}:
     get:
       consumes:
@@ -514,9 +531,9 @@ paths:
       - application/json
       description: Estabelece uma conexão WebSocket para o usuário
       parameters:
-      - description: ID do usuário
+      - description: JWT Token
         in: query
-        name: userId
+        name: token
         required: true
         type: string
       produces:
@@ -530,6 +547,12 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties:
               type: string

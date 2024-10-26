@@ -16,6 +16,57 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/groups": {
+            "get": {
+                "description": "Obtém uma lista de grupos dos quais o usuário autenticado faz parte",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Grupos"
+                ],
+                "summary": "Listar grupos do usuário",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Group"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Representa a requisição para criar um grupo",
                 "consumes": [
@@ -125,75 +176,6 @@ const docTemplate = `{
             }
         },
         "/groups/{groupId}": {
-            "put": {
-                "description": "Edita um grupo existente com novos membros e/ou nova sender key",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Grupos"
-                ],
-                "summary": "Editar um grupo",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID do grupo",
-                        "name": "groupId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dados do grupo",
-                        "name": "group",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.EditGroupRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
             "delete": {
                 "description": "Deleta um grupo e suas sender keys associadas",
                 "consumes": [
@@ -484,6 +466,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/users": {
+            "get": {
+                "description": "Obtém uma lista de todos os usuários cadastrados, excluindo o usuário autenticado",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Usuários"
+                ],
+                "summary": "Obter lista de usuários",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.User"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/users/{userId}": {
             "get": {
                 "description": "Obtém os detalhes de um usuário específico",
@@ -610,8 +645,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID do usuário",
-                        "name": "userId",
+                        "description": "JWT Token",
+                        "name": "token",
                         "in": "query",
                         "required": true
                     }
@@ -628,6 +663,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -669,22 +713,6 @@ const docTemplate = `{
                 },
                 "senderKey": {
                     "description": "Sender key em texto simples",
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.EditGroupRequest": {
-            "type": "object",
-            "properties": {
-                "members": {
-                    "description": "Nova lista de userIds",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "senderKey": {
-                    "description": "Nova sender key em texto simples",
                     "type": "string"
                 }
             }
@@ -738,7 +766,13 @@ const docTemplate = `{
         "handlers.TokenResponse": {
             "type": "object",
             "properties": {
+                "publicKey": {
+                    "$ref": "#/definitions/models.PublicKey"
+                },
                 "token": {
+                    "type": "string"
+                },
+                "userId": {
                     "type": "string"
                 }
             }
@@ -835,7 +869,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:3000",
-	BasePath:         "/",
+	BasePath:         "/api",
 	Schemes:          []string{"http"},
 	Title:            "Chat API",
 	Description:      "Esta é uma API de servidor de chat simples.",

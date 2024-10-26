@@ -79,7 +79,10 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Usuário registrado com sucesso"})
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Usuário registrado com sucesso",
+		"userId":  user.UserId,
+	})
 }
 
 // LoginHandler representa a requisição de login

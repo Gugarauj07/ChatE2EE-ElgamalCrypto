@@ -4,6 +4,7 @@ import { register } from '../services/auth';
 import { ElGamal } from '../utils/elgamal';
 import { AuthContext } from '../contexts/AuthContext';
 import { savePrivateKey } from '../services/keyStore';
+import { ClipLoader } from 'react-spinners';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,14 +14,17 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Estado de carregamento
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsLoading(true); // Iniciar carregamento
 
     if (password !== confirmPassword) {
       setError('As senhas não coincidem!');
+      setIsLoading(false);
       return;
     }
 
@@ -50,6 +54,8 @@ export default function Register() {
         // Erro de rede ou outro
         setError('Erro ao realizar registro. Tente novamente mais tarde.');
       }
+    } finally {
+      setIsLoading(false); // Finalizar carregamento
     }
   };
 
@@ -102,9 +108,10 @@ export default function Register() {
         </div>
         <button
           type="submit"
-          className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600"
+          className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 flex items-center justify-center"
+          disabled={isLoading}
         >
-          Registrar
+          {isLoading ? <ClipLoader size={20} color="#ffffff" /> : 'Registrar'}
         </button>
         <p className="mt-4 text-center">
           Já tem uma conta? <Link to="/" className="text-blue-500">Faça Login</Link>

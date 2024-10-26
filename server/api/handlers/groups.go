@@ -7,7 +7,7 @@ import (
 
 	"server/db"
 	"server/models"
-	"server/crypto" // Importando o pacote de criptografia ElGamal
+	"server/crypto" 
 
 	"github.com/gin-gonic/gin"
 )

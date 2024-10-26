@@ -4,6 +4,7 @@ import { login } from '../services/auth';
 import { ElGamal, PrivateKey } from '../utils/elgamal';
 import { AuthContext } from '../contexts/AuthContext';
 import { getPrivateKey } from '../services/keyStore';
+import { ClipLoader } from 'react-spinners';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,10 +12,12 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Estado de carregamento
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true); // Iniciar carregamento
 
     try {
       const response = await login(username, password);
@@ -24,11 +27,11 @@ export default function Login() {
       const encryptedPrivateKey = await getPrivateKey(userId, password);
       if (!encryptedPrivateKey) {
         setError('Chave privada não encontrada. Por favor, registre-se novamente.');
+        setIsLoading(false);
         return;
       }
 
       // Desencriptar a chave privada usando a senha
-      // (A função getPrivateKey já realiza o processo de descriptografia)
       const privateKey = encryptedPrivateKey;
 
       setAuth(token, userId, publicKey, privateKey);
@@ -39,6 +42,8 @@ export default function Login() {
       } else {
         setError('Erro ao realizar login. Tente novamente mais tarde.');
       }
+    } finally {
+      setIsLoading(false); // Finalizar carregamento
     }
   };
 
@@ -76,9 +81,10 @@ export default function Login() {
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 flex items-center justify-center"
+          disabled={isLoading}
         >
-          Entrar
+          {isLoading ? <ClipLoader size={20} color="#ffffff" /> : 'Entrar'}
         </button>
         <p className="mt-4 text-center">
           Não tem uma conta? <Link to="/register" className="text-blue-500">Registre-se</Link>
