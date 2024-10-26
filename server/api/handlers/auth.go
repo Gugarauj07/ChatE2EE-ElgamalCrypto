@@ -7,14 +7,20 @@ import (
 
 	"server/db"
 	"server/models"
-
+	"os"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// Chave secreta para assinar os tokens JWT
-var jwtSecret = []byte("SeCrETa") // Substitua por uma chave segura em produção
+var jwtSecret []byte
+func init() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		panic("JWT_SECRET não está definido")
+	}
+	jwtSecret = []byte(secret)
+}
 
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required"`
