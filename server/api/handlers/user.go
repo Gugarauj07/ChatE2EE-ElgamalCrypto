@@ -79,3 +79,46 @@ func UpdateUserHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Usuário atualizado com sucesso"})
 }
+
+// GetAllUsersHandler obtém a lista de todos os usuários, excluindo o usuário autenticado
+// @Summary Obter lista de usuários
+// @Description Obtém uma lista de todos os usuários cadastrados, excluindo o usuário autenticado
+// @Tags Usuários
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer Token"
+// @Success 200 {array} models.User
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users [get]
+func GetAllUsersHandler(c *gin.Context) {
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	var users []models.User
+	if err := db.DB.Where("user_id != ?", userId.(string)).Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar usuários"})
+		return
+	}
+
+	// Filtrar informações relevantes
+	type UserResponse struct {
+		UserId    string       `json:"userId"`
+		Username  string       `json:"username"`
+		PublicKey models.PublicKey `json:"publicKey"`
+	}
+
+	var response []UserResponse
+	for _, user := range users {
+		response = append(response, UserResponse{
+			UserId:    user.UserId,
+			Username:  user.Username,
+			PublicKey: user.PublicKey,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}

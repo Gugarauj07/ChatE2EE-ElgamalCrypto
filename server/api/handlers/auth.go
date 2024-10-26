@@ -16,24 +16,24 @@ import (
 // Chave secreta para assinar os tokens JWT
 var jwtSecret = []byte("SeCrETa") // Substitua por uma chave segura em produção
 
-
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
-
 
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// TokenResponse representa a resposta com o token JWT
+// TokenResponse representa a resposta com o token JWT, userId e publicKey
 type TokenResponse struct {
-	Token string `json:"token"`
+	Token     string         `json:"token"`
+	UserId    string         `json:"userId"`
+	PublicKey models.PublicKey `json:"publicKey"`
 }
 
-// RegisterRequest representa a requisição de registro
+// RegisterHandler representa a requisição de registro
 // @Description Representa a requisição de registro
 // @Tags Autenticação
 // @Accept json
@@ -43,7 +43,7 @@ type TokenResponse struct {
 // @Failure 400 {object} map[string]string
 // @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router register [post]
+// @Router /register [post]
 func RegisterHandler(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,7 +82,7 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Usuário registrado com sucesso"})
 }
 
-// LoginRequest representa a requisição de login
+// LoginHandler representa a requisição de login
 // @Description Representa a requisição de login
 // @Tags Autenticação
 // @Accept json
@@ -92,7 +92,7 @@ func RegisterHandler(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router login [post]
+// @Router /login [post]
 func LoginHandler(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -120,7 +120,12 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TokenResponse{Token: token})
+	// Retornar token, userId e publicKey
+	c.JSON(http.StatusOK, TokenResponse{
+		Token:     token,
+		UserId:    user.UserId,
+		PublicKey: user.PublicKey,
+	})
 }
 
 // generateJWT gera um token JWT para um usuário

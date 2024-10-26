@@ -2,17 +2,17 @@
 const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 const crypto = isNode ? require('crypto') : window.crypto;
 
-interface PublicKey {
+export interface PublicKey {
   p: string;
   g: string;
   y: string;
 }
 
-interface PrivateKey {
+export interface PrivateKey {
   x: string;
 }
 
-interface EncryptedMessage {
+export interface EncryptedMessage {
   a: string;
   b: string;
 }

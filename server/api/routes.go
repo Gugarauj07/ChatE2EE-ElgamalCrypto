@@ -20,6 +20,7 @@ func SetupRoutes(router *gin.Engine) {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			// Gestão de Usuários
+			protected.GET("/users", handlers.GetAllUsersHandler)
 			protected.GET("/users/:userId", handlers.GetUserHandler)
 			protected.PUT("/users/:userId", handlers.UpdateUserHandler)
 
@@ -28,6 +29,7 @@ func SetupRoutes(router *gin.Engine) {
 			protected.GET("/messages", handlers.GetMessagesHandler)
 
 			// Gestão de Grupos com Autorização
+			protected.GET("/groups", handlers.ListGroupsHandler) // Novo Endpoint
 			protected.POST("/groups", handlers.CreateGroupHandler)
 			protected.PUT("/groups/:groupId", handlers.EditGroupHandler).Use(middleware.IsGroupMember())
 			protected.DELETE("/groups/:groupId", handlers.DeleteGroupHandler).Use(middleware.IsGroupMember())

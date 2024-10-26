@@ -1,9 +1,9 @@
+// client/src/components/GroupList.tsx
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { getGroups, Group } from '../services/auth';
+import { useNavigate } from 'react-router-dom';
 
-export default function Groups() {
-  const { groupId } = useParams<{ groupId: string }>();
+export default function GroupList() {
   const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -31,8 +31,8 @@ export default function Groups() {
     fetchGroups();
   }, []);
 
-  const handleEnterGroup = (id: string) => {
-    navigate(`/groups/${id}`);
+  const handleEnterGroup = (groupId: string) => {
+    navigate(`/groups/${groupId}`);
   };
 
   if (loading) {
@@ -45,7 +45,7 @@ export default function Groups() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl mb-4">Meus Grupos</h2>
+      <h2 className="text-xl mb-4">Grupos</h2>
       <ul>
         {groups.map((group) => (
           <li key={group.groupId} className="flex justify-between items-center mb-2">

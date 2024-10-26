@@ -203,3 +203,46 @@ func UpdateSenderKeys(group models.Group) error {
 
 	return nil
 }
+
+// ListGroupsHandler retorna a lista de grupos que o usuário autenticado faz parte
+// @Summary Listar grupos do usuário
+// @Description Obtém uma lista de grupos dos quais o usuário autenticado faz parte
+// @Tags Grupos
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer Token"
+// @Success 200 {array} models.Group
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /groups [get]
+func ListGroupsHandler(c *gin.Context) {
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	var groups []models.Group
+	if err := db.DB.Where("members @> ?", []string{userId.(string)}).Find(&groups).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar grupos"})
+		return
+	}
+
+	// Filtrar informações relevantes
+	type GroupResponse struct {
+		GroupID   string   `json:"groupId"`
+		Members   []string `json:"members"`
+		SenderKey string   `json:"senderKey"`
+	}
+
+	var response []GroupResponse
+	for _, group := range groups {
+		response = append(response, GroupResponse{
+			GroupID:   group.GroupID,
+			Members:   group.Members,
+			SenderKey: group.SenderKey,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}

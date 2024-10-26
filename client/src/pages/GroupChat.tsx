@@ -1,11 +1,12 @@
+// client/src/pages/GroupChat.tsx
 import React, { useEffect, useState, useRef, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ElGamal } from '../utils/elgamal';
 import { AuthContext } from '../contexts/AuthContext';
 
-export default function Chat() {
-  const { userId } = useParams<{ userId: string }>();
+export default function GroupChat() {
+  const { groupId } = useParams<{ groupId: string }>();
   const { token, publicKey, privateKey } = useContext(AuthContext);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState<string>('');
@@ -21,20 +22,17 @@ export default function Chat() {
   useEffect(() => {
     if (!publicKey) return;
 
-    const fetchPublicKeys = async () => {
-      // Obtenha a chave pública do destinatário do servidor
-      // Isso é essencial para criptografar mensagens para ele
+    const fetchGroupPublicKeys = async () => {
+      // Obtenha as chaves públicas dos membros do grupo do servidor
+      // Necessário para criptografar mensagens para cada membro
       // Implemente a chamada de API conforme necessário
-      // Exemplo:
-      // const response = await axios.get(`/api/users/${userId}/publicKey`, { headers: { Authorization: `Bearer ${token}` } });
-      // const recipientPublicKey = response.data.publicKey;
     };
 
-    fetchPublicKeys();
-  }, [userId, publicKey, token]);
+    fetchGroupPublicKeys();
+  }, [groupId, publicKey, token]);
 
   useEffect(() => {
-    if (!token || !userId) return;
+    if (!token || !groupId) return;
 
     // Inicializar WebSocket
     ws.current = new WebSocket(`ws://localhost:3000/ws?token=${token}`);
@@ -45,10 +43,7 @@ export default function Chat() {
 
     ws.current.onmessage = (event) => {
       const message: any = JSON.parse(event.data);
-      if (
-        message.senderId === userId ||
-        message.recipientId === userId
-      ) {
+      if (message.recipientId === groupId) {
         setMessages((prev) => [...prev, message]);
       }
     };
@@ -60,7 +55,7 @@ export default function Chat() {
     return () => {
       ws.current?.close();
     };
-  }, [userId, token]);
+  }, [groupId, token]);
 
   useEffect(() => {
     scrollToBottom();
@@ -70,11 +65,11 @@ export default function Chat() {
     e.preventDefault();
     if (!input || !publicKey || !privateKey) return;
 
-    // Criptografar a mensagem usando a chave pública do destinatário
+    // Criptografar a mensagem usando a chave pública do grupo
     const encryptedContent: any = elgamal.encrypt(input, publicKey);
 
     const messageData = {
-      recipientId: userId,
+      recipientId: groupId,
       encryptedContent,
     };
 
@@ -92,14 +87,14 @@ export default function Chat() {
       // Enviar mensagem via WebSocket
       ws.current?.send(JSON.stringify({
         senderId: "me", // Substitua com o ID real do usuário
-        recipientId: userId,
+        recipientId: groupId,
         encryptedContent,
         timestamp: new Date().toISOString(),
       }));
 
       setMessages((prev) => [...prev, {
         senderId: "me",
-        recipientId: userId,
+        recipientId: groupId,
         encryptedContent,
         timestamp: new Date().toISOString(),
       }]);
@@ -122,7 +117,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen">
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <h1 className="text-2xl">Chat com {userId}</h1>
+        <h1 className="text-2xl">Grupo: {groupId}</h1>
       </header>
       <main className="flex-grow p-4 overflow-y-auto bg-gray-100">
         {messages.map((msg, index) => (
