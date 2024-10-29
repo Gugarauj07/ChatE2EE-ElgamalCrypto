@@ -12,6 +12,7 @@ erDiagram
     USERS ||--o{ DEVICES : has
     USERS ||--o{ CONVERSATIONS : participates
     USERS ||--o{ GROUP_MEMBERS : belongs
+    USERS ||--o{ CONTACTS : has
     DEVICES ||--o{ SESSION_KEYS : uses
     DEVICES ||--o{ MESSAGES : sends
     CONVERSATIONS ||--o{ MESSAGES : contains
@@ -20,62 +21,69 @@ erDiagram
     GROUPS ||--o{ MESSAGES : contains
 
     USERS {
-        int id PK
+        string id PK
         string username
         string password_hash
         timestamp created_at
         timestamp last_seen
     }
 
+    CONTACTS {
+        string user_id FK
+        string contact_id FK
+        string nickname
+        timestamp added_at
+    }
+
     DEVICES {
-        int id PK
-        id user_id FK
+        string id PK
+        string user_id FK
         blob public_key
         timestamp last_seen
         boolean is_active
     }
 
     SESSION_KEYS {
-        int id PK
-        id conversation_id FK
-        id device_id FK
+        string id PK
+        string conversation_id FK
+        string device_id FK
         blob encrypted_key
         timestamp created_at
         timestamp last_rotation
     }
 
     CONVERSATIONS {
-        int id PK
+        string id PK
         string type
         timestamp created_at
         string group_id FK "null for direct"
     }
 
     MESSAGES {
-        int id PK
-        int conversation_id FK
-        int sender_device_id FK
+        string id PK
+        string conversation_id FK
+        string sender_device_id FK
         blob encrypted_content
         timestamp created_at
         boolean is_delivered
     }
 
     GROUPS {
-        int id PK
+        string id PK
         string name
         blob sender_key
-        id admin_id FK
+        string admin_id FK
         timestamp created_at
     }
 
     GROUP_MEMBERS {
-        int group_id FK
-        int user_id FK
+        string group_id FK
+        string user_id FK
         timestamp joined_at
     }
 ```
 
-### Fluxo de Criptografia
+### Fluxo de Criptografia e Operações
 ```mermaid
 graph TD
     %% Registro e Login Inicial
@@ -85,41 +93,58 @@ graph TD
     D --> E[Armazenar Chave Privada Localmente]
     E --> F[Login Bem Sucedido]
 
+    %% Gestão de Contatos
+    F --> G1[Adicionar Contato]
+    G1 --> H1[Buscar Usuário por Username]
+    H1 --> I1[Adicionar à Lista de Contatos]
+    I1 --> J1[Pode Iniciar Conversa]
+
+    %% Criação de Grupo
+    F --> G2[Criar Grupo]
+    G2 --> H2[Definir Nome do Grupo]
+    H2 --> I2[Selecionar Contatos]
+    I2 --> J2[Gerar Sender Key]
+    J2 --> K2[Criptografar Sender Key para Cada Membro]
+    K2 --> L2[Criar Grupo no Servidor]
+
+    %% Adicionar Membro ao Grupo
+    F --> G3[Adicionar Membro ao Grupo]
+    G3 --> H3{É Admin?}
+    H3 -->|Sim| I3[Selecionar Contato]
+    I3 --> J3[Criptografar Sender Key]
+    J3 --> K3[Adicionar ao Grupo]
+    H3 -->|Não| L3[Erro: Sem Permissão]
+
     %% Estabelecimento de Sessão
-    F --> G[Iniciar Nova Conversa]
-    G --> H[Gerar Chave de Sessão]
-    H --> I[Obter Chaves Públicas dos Dispositivos]
-    I --> J[Criptografar Chave de Sessão]
-    J --> K[Enviar ao Servidor]
-    K --> L[Armazenar no Banco de Dados]
+    J1 --> M[Iniciar Nova Conversa]
+    M --> N[Gerar Chave de Sessão]
+    N --> O[Obter Chaves Públicas dos Dispositivos]
+    O --> P[Criptografar Chave de Sessão]
+    P --> Q[Enviar ao Servidor]
+    Q --> R[Armazenar no Banco de Dados]
 
     %% Fluxo de Mensagens
-    F --> M{Tipo de Chat}
-    M -->|Individual| N{Existe Sessão?}
-    N -->|Não| G
-    N -->|Sim| O[Criptografar com Chave de Sessão]
-    M -->|Grupo| P[Usar Chave do Grupo]
-    O --> Q[Enviar Mensagem Criptografada]
-    P --> Q
-
-    %% Novo Dispositivo
-    F --> R[Login Novo Dispositivo]
-    R --> S[Gerar Novas Chaves]
-    S --> T[Enviar Chave Pública]
-    T --> U[Receber Chaves de Sessão Criptografadas]
-    U --> V[Descriptografar com Chave Privada]
-    V --> F
-
-    %% Rotação de Chaves
-    L --> W[Tempo para Rotação]
-    W --> X[Gerar Nova Chave de Sessão]
-    X --> I
+    F --> S{Tipo de Chat}
+    S -->|Individual| T{Existe Sessão?}
+    T -->|Não| M
+    T -->|Sim| U[Criptografar com Chave de Sessão]
+    S -->|Grupo| V[Usar Sender Key]
+    U --> W[Enviar Mensagem Criptografada]
+    V --> W
 
     %% Recebimento
-    Q --> Y[Servidor Encaminha]
-    Y --> Z[Dispositivo Recebe]
-    Z --> AA[Descriptografar com Chave de Sessão]
-    AA --> AB[Exibir Mensagem]
+    W --> X[Servidor Encaminha]
+    X --> Y[Dispositivo Recebe]
+    Y --> Z[Descriptografar]
+    Z --> AA[Exibir Mensagem]
+
+    %% Estilização
+    classDef success fill:#99ff99
+    classDef process fill:#9999ff
+    classDef warning fill:#ffcc99
+    class AA success
+    class U,V,Z process
+    class H3,L3 warning
 ```
 
 ### Componentes Principais
