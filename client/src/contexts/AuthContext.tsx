@@ -1,15 +1,16 @@
 // client/src/contexts/AuthContext.tsx
-import { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { getPrivateKey, savePrivateKey } from '../services/keyStore';
 import { PublicKey, PrivateKey } from '../utils/elgamal';
-import { clearPrivateKey } from '../services/keyStore';
 
 interface AuthContextType {
   token: string | null;
   userId: string | null;
   publicKey: PublicKey | null;
   privateKey: PrivateKey | null;
-  setAuth: (token: string | null, userId: string | null, publicKey?: PublicKey, privateKey?: PrivateKey) => void;
-  logout: () => Promise<void>;
+  setAuth: (token: string, userId: string, publicKey: PublicKey, privateKey: PrivateKey) => void;
+  setAuthFromStorage: () => void;
+  logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -18,65 +19,70 @@ export const AuthContext = createContext<AuthContextType>({
   publicKey: null,
   privateKey: null,
   setAuth: () => {},
-  logout: () => Promise.resolve(),
+  setAuthFromStorage: () => {},
+  logout: () => {},
 });
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
   const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUserId = localStorage.getItem('userId');
-    if (storedToken) setToken(storedToken);
-    if (storedUserId) setUserId(storedUserId);
-    // As chaves não são armazenadas no localStorage por questões de segurança
-  }, []);
-
-  const setAuth = (newToken: string | null, newUserId: string | null, newPublicKey?: PublicKey, newPrivateKey?: PrivateKey) => {
+  const setAuth = (newToken: string, newUserId: string, newPublicKey: PublicKey, newPrivateKey: PrivateKey) => {
     setToken(newToken);
     setUserId(newUserId);
-    if (newToken) {
-      localStorage.setItem('token', newToken);
-    } else {
-      localStorage.removeItem('token');
-    }
+    setPublicKey(newPublicKey);
+    setPrivateKey(newPrivateKey);
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('userId', newUserId);
+    localStorage.setItem('publicKey', JSON.stringify(newPublicKey));
+    // Salvar a chave privada no IndexedDB
+    savePrivateKey(newUserId, newPrivateKey, 'sua-senha-aqui'); // Substitua por uma senha segura
+  };
 
-    if (newUserId) {
-      localStorage.setItem('userId', newUserId);
-    } else {
-      localStorage.removeItem('userId');
-    }
+  const setAuthFromStorage = async () => {
+    const storedToken = localStorage.getItem('token');
+    const storedUserId = localStorage.getItem('userId');
+    const storedPublicKey = localStorage.getItem('publicKey');
 
-    if (newPublicKey) {
-      setPublicKey(newPublicKey);
-    }
+    if (storedToken && storedUserId && storedPublicKey) {
+      const parsedPublicKey: PublicKey = JSON.parse(storedPublicKey);
+      const retrievedPrivateKey = await getPrivateKey(storedUserId, 'sua-senha-aqui'); // Substitua pela senha correta
 
-    if (newPrivateKey) {
-      setPrivateKey(newPrivateKey);
+      if (retrievedPrivateKey) {
+        setToken(storedToken);
+        setUserId(storedUserId);
+        setPublicKey(parsedPublicKey);
+        setPrivateKey(retrievedPrivateKey);
+      } else {
+        // Se a chave privada não for encontrada ou falhar na descriptografia, deslogue o usuário
+        logout();
+      }
     }
   };
 
-  const logout = async () => {
-    if (userId) {
-      await clearPrivateKey(userId);
-    }
+  const logout = () => {
     setToken(null);
     setUserId(null);
     setPublicKey(null);
     setPrivateKey(null);
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    localStorage.removeItem('publicKey');
+    // Limpar a chave privada do IndexedDB
+    if (userId) {
+      // Implementar a função clearPrivateKey se ainda não estiver implementada
+      // clearPrivateKey(userId);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ token, userId, publicKey, privateKey, setAuth, logout }}>
+    <AuthContext.Provider value={{ token, userId, publicKey, privateKey, setAuth, setAuthFromStorage, logout }}>
       {children}
     </AuthContext.Provider>
   );

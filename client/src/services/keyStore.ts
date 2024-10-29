@@ -24,19 +24,14 @@ export const savePrivateKey = async (userId: string, privateKey: PrivateKey, pas
   try {
     const db = await dbPromise;
 
-    // Converter a chave privada para string JSON
     const privateKeyString = JSON.stringify(privateKey);
 
-    // Gerar um salt aleatório
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
 
-    // Derivar a chave criptográfica a partir da senha e salt
     const cryptoKey = await deriveKey(password, salt);
 
-    // Gerar um IV aleatório
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
 
-    // Criptografar a chave privada
     const encoder = new TextEncoder();
     const encrypted = await window.crypto.subtle.encrypt(
       {
@@ -47,14 +42,11 @@ export const savePrivateKey = async (userId: string, privateKey: PrivateKey, pas
       encoder.encode(privateKeyString)
     );
 
-    // Armazenar salt, iv e encrypted data
     const storedData = {
       salt: Array.from(salt),
       iv: Array.from(iv),
       encrypted: Array.from(new Uint8Array(encrypted)),
     };
-
-    console.log('Salvando chave privada:', storedData); // Log
 
     await db.put(STORE_NAME, storedData, `privateKey_${userId}`);
   } catch (error) {
@@ -79,19 +71,14 @@ export const getPrivateKey = async (userId: string, password: string): Promise<P
       return undefined;
     }
 
-    console.log('Recuperando chave privada:', storedData); // Log
-
     const { salt, iv, encrypted }: { salt: number[]; iv: number[]; encrypted: number[] } = storedData;
 
-    // Reconstituir Uint8Array
     const saltBytes = new Uint8Array(salt);
     const ivBytes = new Uint8Array(iv);
     const encryptedBytes = new Uint8Array(encrypted);
 
-    // Derivar a chave criptográfica a partir da senha e salt
     const cryptoKey = await deriveKey(password, saltBytes);
 
-    // Desencriptar a chave privada
     const decrypted = await window.crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
@@ -103,7 +90,6 @@ export const getPrivateKey = async (userId: string, password: string): Promise<P
 
     const decoder = new TextDecoder();
     const privateKeyString = decoder.decode(decrypted);
-    console.log('Chave privada desencriptada:', privateKeyString); // Log
     return JSON.parse(privateKeyString) as PrivateKey;
   } catch (error) {
     console.error('Falha na descriptografia da chave privada:', error);

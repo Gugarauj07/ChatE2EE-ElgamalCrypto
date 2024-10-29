@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { register } from '../services/auth';
-import { ElGamal } from '../utils/elgamal';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import { register as registerService } from '../services/auth';
+import ClipLoader from 'react-spinners/ClipLoader';
+import { ElGamal } from '../utils/elgamal';
 import { savePrivateKey } from '../services/keyStore';
-import { ClipLoader } from 'react-spinners';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -14,13 +14,13 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Estado de carregamento
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setIsLoading(true); // Iniciar carregamento
+    setIsLoading(true);
 
     if (password !== confirmPassword) {
       setError('As senhas não coincidem!');
@@ -29,33 +29,28 @@ export default function Register() {
     }
 
     try {
-      // Instanciar ElGamal e gerar chaves
       const elgamal = new ElGamal();
       const { publicKey, privateKey } = elgamal.generateKeys();
 
-      const response = await register(username, password, publicKey);
+      const response = await registerService(username, password, publicKey);
       setSuccess(response.message);
 
-      // Salvar a chave privada criptografada no IndexedDB usando a senha
+      // Salvar a chave privada no IndexedDB
       await savePrivateKey(response.userId, privateKey, password);
 
-      // Armazenar as chaves no contexto (não no localStorage)
       setAuth(response.token, response.userId, publicKey, privateKey);
 
-      // Redirecionar para a página de login após o registro bem-sucedido
       setTimeout(() => {
-        navigate('/');
+        navigate('/chat');
       }, 2000);
     } catch (err: any) {
       if (err.response) {
-        // Erro retornado pelo servidor
         setError(err.response.data.error || 'Erro ao realizar registro');
       } else {
-        // Erro de rede ou outro
         setError('Erro ao realizar registro. Tente novamente mais tarde.');
       }
     } finally {
-      setIsLoading(false); // Finalizar carregamento
+      setIsLoading(false);
     }
   };
 
@@ -114,7 +109,7 @@ export default function Register() {
           {isLoading ? <ClipLoader size={20} color="#ffffff" /> : 'Registrar'}
         </button>
         <p className="mt-4 text-center">
-          Já tem uma conta? <Link to="/" className="text-blue-500">Faça Login</Link>
+          Já tem uma conta? <Link to="/login" className="text-blue-500">Faça Login</Link>
         </p>
       </form>
     </div>

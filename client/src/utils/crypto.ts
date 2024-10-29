@@ -1,15 +1,15 @@
 // client/src/utils/crypto.ts
-export const deriveKey = async (password: string, salt: Uint8Array): Promise<CryptoKey> => {
-  const encoder = new TextEncoder();
+export const deriveKey = async (password: string, salt: Uint8Array) => {
+  const enc = new TextEncoder();
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    enc.encode(password),
     { name: 'PBKDF2' },
     false,
     ['deriveKey']
   );
 
-  return window.crypto.subtle.deriveKey(
+  const key = await window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: salt,
@@ -21,4 +21,6 @@ export const deriveKey = async (password: string, salt: Uint8Array): Promise<Cry
     false,
     ['encrypt', 'decrypt']
   );
+
+  return key;
 };

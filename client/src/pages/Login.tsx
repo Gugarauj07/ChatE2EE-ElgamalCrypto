@@ -1,10 +1,9 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../services/auth';
-import { ElGamal, PrivateKey } from '../utils/elgamal';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import { login as loginService } from '../services/auth';
+import ClipLoader from 'react-spinners/ClipLoader';
 import { getPrivateKey } from '../services/keyStore';
-import { ClipLoader } from 'react-spinners';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,27 +11,24 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Estado de carregamento
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true); // Iniciar carregamento
+    setIsLoading(true);
 
     try {
-      const response = await login(username, password);
+      const response = await loginService(username, password);
       const { token, userId, publicKey } = response;
 
-      // Recuperar a chave privada criptografada do IndexedDB
-      const encryptedPrivateKey = await getPrivateKey(userId, password);
-      if (!encryptedPrivateKey) {
+      // Recuperar a chave privada do IndexedDB
+      const privateKey = await getPrivateKey(userId, password);
+      if (!privateKey) {
         setError('Chave privada não encontrada. Por favor, registre-se novamente.');
         setIsLoading(false);
         return;
       }
-
-      // Desencriptar a chave privada usando a senha
-      const privateKey = encryptedPrivateKey;
 
       setAuth(token, userId, publicKey, privateKey);
       navigate('/chat');
@@ -43,16 +39,13 @@ export default function Login() {
         setError('Erro ao realizar login. Tente novamente mais tarde.');
       }
     } finally {
-      setIsLoading(false); // Finalizar carregamento
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded shadow-md w-full max-w-sm"
-      >
+      <form onSubmit={handleLogin} className="bg-white p-6 rounded shadow-md w-full max-w-sm">
         <h2 className="text-2xl mb-4 text-center">Login</h2>
         {error && (
           <div className="mb-4 text-red-500 text-center">

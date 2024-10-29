@@ -63,6 +63,24 @@ func main() {
 	// Configurar CORS
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:5173"}
+
+	config.AllowHeaders = []string{
+		"Authorization",
+		"Content-Type",
+		"Origin",
+		"Accept",
+		"X-Requested-With",
+		"Content-Length",
+		"Accept-Encoding",
+		"Accept-Language",
+		"Connection",
+		"Dnt",
+		"Host",
+		"Referer",
+		"User-Agent",
+		"If-Modified-Since",
+	}
+
 	router.Use(cors.New(config))
 
 	// Rota do Swagger

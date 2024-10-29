@@ -6,12 +6,14 @@ interface ProtectedRouteProps {
   children: JSX.Element;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { token } = useContext(AuthContext);
 
   if (!token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;
-}
+};
+
+export default ProtectedRoute;
