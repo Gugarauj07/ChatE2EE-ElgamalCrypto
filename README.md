@@ -115,6 +115,14 @@ graph TD
     J3 --> K3[Adicionar ao Grupo]
     H3 -->|Não| L3[Erro: Sem Permissão]
 
+    %% Novo Dispositivo
+    F --> G4[Login Novo Dispositivo]
+    G4 --> H4[Gerar Novas Chaves]
+    H4 --> I4[Enviar Chave Pública]
+    I4 --> J4[Obter Lista de Conversas]
+    J4 --> K4[Estabelecer Novas Sessões]
+    K4 --> L4[Receber Chaves de Grupo]
+
     %% Estabelecimento de Sessão
     J1 --> M[Iniciar Nova Conversa]
     M --> N[Gerar Chave de Sessão]
@@ -137,14 +145,6 @@ graph TD
     X --> Y[Dispositivo Recebe]
     Y --> Z[Descriptografar]
     Z --> AA[Exibir Mensagem]
-
-    %% Estilização
-    classDef success fill:#99ff99
-    classDef process fill:#9999ff
-    classDef warning fill:#ffcc99
-    class AA success
-    class U,V,Z process
-    class H3,L3 warning
 ```
 
 ### Componentes Principais
