@@ -21,6 +21,7 @@ erDiagram
         string username
         string password_hash
         blob encrypted_private_key
+        blob public_key
         timestamp created_at
         timestamp last_seen
     }
@@ -149,72 +150,39 @@ Z4 --> Z5[Acesso às Conversas Existentes]
    - **Sender Keys:** Utilizam ElGamal para criptografar as chaves de envio em grupos, garantindo que apenas os membros autorizados possam descriptografá-las.
    - **Chave Privada:** Criptografada com uma chave derivada da senha do usuário, garantindo que apenas o usuário possa descriptografá-la.
 
-3. **Acesso de Novo Dispositivo**
+3. **Criptografia das Mensagens**
+   - **Algoritmo Utilizado:** AES-256 em modo Galois/Counter (GCM).
+   - **Processo de Criptografia:**
+     1. **Geração da Chave Simétrica:** Utiliza-se a chave de conversa (para chats individuais) ou a sender key (para grupos), que são previamente criptografadas com ElGamal e descriptografadas pelo destinatário.
+     2. **Criptografia da Mensagem:** A mensagem é criptografada utilizando AES-256-GCM com a chave simétrica, garantindo confidencialidade e integridade.
+   - **Descriptografia no Destinatário:**
+     1. **Obtenção da Chave Simétrica:** O destinatário descriptografa a chave de conversa ou sender key usando sua chave privada.
+     2. **Descriptografia da Mensagem:** Utiliza-se a chave simétrica para descriptografar o conteúdo da mensagem, assegurando que somente o destinatário possa ler a mensagem original.
+
+4. **Acesso de Novo Dispositivo**
    - **Login Seguro:** O usuário pode acessar a aplicação de novos dispositivos realizando login e descriptografando sua chave privada com a senha.
    - **Acesso às Chaves de Conversa e Sender Keys:** Com a chave privada disponível, o usuário pode descriptografar as chaves de conversa e Sender Keys armazenadas no servidor, permitindo o acesso contínuo às conversas existentes.
 
-4. **Armazenamento no Servidor**
+5. **Armazenamento no Servidor**
    - **Chaves Privadas:** Armazenadas de forma criptografada utilizando ElGamal, protegidas pela senha do usuário.
    - **Chaves Públicas e Chaves de Conversa:** Armazenadas no servidor sem criptografia adicional, já que são utilizadas para criptografar mensagens direcionadas.
 
-5. **Gerenciamento de Grupos**
+6. **Gerenciamento de Grupos**
    - **Sender Keys:** Cada grupo possui uma Sender Key única, gerada com AES-256 e criptografada com ElGamal para cada membro do grupo.
    - **Adição de Membros:** Ao adicionar um novo membro a um grupo, a Sender Key é criptografada com a chave pública do novo membro utilizando ElGamal e enviada para ele.
 
-6. **Integridade e Autenticidade**
+7. **Integridade e Autenticidade**
    - **Assinaturas Digitais:** Todas as mensagens são assinadas digitalmente utilizando as chaves privadas dos remetentes, garantindo a autenticidade e integridade das mensagens.
    - **Verificação de Assinaturas:** O destinatário verifica a assinatura utilizando a chave pública do remetente antes de descriptografar o conteúdo da mensagem.
 
-7. **Proteção Contra Ataques**
+8. **Proteção Contra Ataques**
    - **Replay Attacks:** Implementação de mecanismos para detectar e prevenir a repetição de mensagens.
    - **Man-in-the-Middle:** Utilização de ElGamal para garantir que apenas os destinatários previstos possam descriptografar as mensagens, prevenindo interceptações não autorizadas.
    - **Força Bruta:** As chaves utilizadas (ElGamal e AES-256) são escolhidas por sua robustez contra ataques de força bruta.
 
-8. **Backup e Recuperação**
+9. **Backup e Recuperação**
    - **Chaves Privadas:** O backup é feito no servidor de forma criptografada com ElGamal, permitindo a recuperação em caso de perda do dispositivo.
    - **Chaves de Conversa e Sender Keys:** Armazenadas no servidor de forma criptografada, garantindo que possam ser recuperadas e descriptografadas em novos dispositivos após o login.
-
-### Estrutura do Banco
-
-1. **Users**
-   - **id:** Identificador único do usuário.
-   - **username:** Nome de usuário.
-   - **password_hash:** Hash da senha do usuário.
-   - **encrypted_private_key:** Chave privada criptografada com base na senha.
-   - **created_at:** Data de criação da conta.
-   - **last_seen:** Última vez que o usuário esteve online.
-
-2. **Contacts**
-   - **user_id:** ID do usuário proprietário da lista de contatos.
-   - **contact_id:** ID do usuário adicionado aos contatos.
-   - **nickname:** Apelido para o contato.
-   - **added_at:** Data de adição do contato.
-
-3. **Conversations**
-   - **id:** Identificador único da conversa.
-   - **type:** Tipo da conversa ("individual" ou "grupo").
-   - **created_at:** Data de criação da conversa.
-   - **group_id:** ID do grupo, se aplicável ("null para individual").
-
-4. **Messages**
-   - **id:** Identificador único da mensagem.
-   - **conversation_id:** ID da conversa a que a mensagem pertence.
-   - **sender_id:** ID do usuário que enviou a mensagem.
-   - **encrypted_content:** Conteúdo da mensagem criptografado.
-   - **created_at:** Data de envio da mensagem.
-   - **is_delivered:** Status de entrega da mensagem.
-
-5. **Groups**
-   - **id:** Identificador único do grupo.
-   - **name:** Nome do grupo.
-   - **sender_key:** Chave utilizada para criptografar mensagens no grupo (AES-256).
-   - **admin_id:** ID do administrador do grupo.
-   - **created_at:** Data de criação do grupo.
-
-6. **Group_Members**
-   - **group_id:** ID do grupo.
-   - **user_id:** ID do usuário membro do grupo.
-   - **joined_at:** Data de entrada no grupo.
 
 ## Instalação
 
