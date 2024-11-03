@@ -2,72 +2,48 @@
 
 ## Visão Geral
 
-O **Chat E2EE** é uma aplicação de mensagens com criptografia de ponta a ponta que prioriza a privacidade e segurança dos usuários.
+O **Chat E2EE** é uma aplicação de mensagens com criptografia de ponta a ponta que prioriza a privacidade e segurança dos usuários. A aplicação utiliza criptografia ElGamal para garantir que apenas os usuários envolvidos nas conversas possam acessar o conteúdo das mensagens.
 
 ## Arquitetura
 
 ### Diagrama de Entidade Relacionamento
 ```mermaid
 erDiagram
-    USERS ||--o{ DEVICES : has
     USERS ||--o{ CONVERSATIONS : participates
     USERS ||--o{ GROUP_MEMBERS : belongs
     USERS ||--o{ CONTACTS : has
-    DEVICES ||--o{ SESSION_KEYS : uses
-    DEVICES ||--o{ MESSAGES : sends
     CONVERSATIONS ||--o{ MESSAGES : contains
-    CONVERSATIONS ||--o{ SESSION_KEYS : uses
+    CONVERSATIONS ||--o{ GROUPS : belongs
     GROUPS ||--o{ GROUP_MEMBERS : has
-    GROUPS ||--o{ MESSAGES : contains
-
+    GROUPS ||--o{ MESSAGES : contain
     USERS {
         string id PK
         string username
         string password_hash
+        blob encrypted_private_key
         timestamp created_at
         timestamp last_seen
     }
-
     CONTACTS {
         string user_id FK
         string contact_id FK
         string nickname
         timestamp added_at
     }
-
-    DEVICES {
-        string id PK
-        string user_id FK
-        blob public_key
-        timestamp last_seen
-        boolean is_active
-    }
-
-    SESSION_KEYS {
-        string id PK
-        string conversation_id FK
-        string device_id FK
-        blob encrypted_key
-        timestamp created_at
-        timestamp last_rotation
-    }
-
     CONVERSATIONS {
         string id PK
         string type
         timestamp created_at
-        string group_id FK "null for direct"
+        string group_id FK "null para individual"
     }
-
     MESSAGES {
         string id PK
         string conversation_id FK
-        string sender_device_id FK
+        string sender_id FK
         blob encrypted_content
         timestamp created_at
         boolean is_delivered
     }
-
     GROUPS {
         string id PK
         string name
@@ -75,7 +51,6 @@ erDiagram
         string admin_id FK
         timestamp created_at
     }
-
     GROUP_MEMBERS {
         string group_id FK
         string user_id FK
@@ -86,65 +61,62 @@ erDiagram
 ### Fluxo de Criptografia e Operações
 ```mermaid
 graph TD
-    %% Registro e Login Inicial
-    A[Início] --> B[Registro de Usuário]
-    B --> C[Gerar Par de Chaves no Dispositivo]
-    C --> D[Enviar Chave Pública ao Servidor]
-    D --> E[Armazenar Chave Privada Localmente]
-    E --> F[Login Bem Sucedido]
-
-    %% Gestão de Contatos
-    F --> G1[Adicionar Contato]
-    G1 --> H1[Buscar Usuário por Username]
-    H1 --> I1[Adicionar à Lista de Contatos]
-    I1 --> J1[Pode Iniciar Conversa]
-
-    %% Criação de Grupo
-    F --> G2[Criar Grupo]
-    G2 --> H2[Definir Nome do Grupo]
-    H2 --> I2[Selecionar Contatos]
-    I2 --> J2[Gerar Sender Key]
-    J2 --> K2[Criptografar Sender Key para Cada Membro]
-    K2 --> L2[Criar Grupo no Servidor]
-
-    %% Adicionar Membro ao Grupo
-    F --> G3[Adicionar Membro ao Grupo]
-    G3 --> H3{É Admin?}
-    H3 -->|Sim| I3[Selecionar Contato]
-    I3 --> J3[Criptografar Sender Key]
-    J3 --> K3[Adicionar ao Grupo]
-    H3 -->|Não| L3[Erro: Sem Permissão]
-
-    %% Novo Dispositivo
-    F --> G4[Login Novo Dispositivo]
-    G4 --> H4[Gerar Novas Chaves]
-    H4 --> I4[Enviar Chave Pública]
-    I4 --> J4[Obter Lista de Conversas]
-    J4 --> K4[Estabelecer Novas Sessões]
-    K4 --> L4[Receber Chaves de Grupo]
-
-    %% Estabelecimento de Sessão
-    J1 --> M[Iniciar Nova Conversa]
-    M --> N[Gerar Chave de Sessão]
-    N --> O[Obter Chaves Públicas dos Dispositivos]
-    O --> P[Criptografar Chave de Sessão]
-    P --> Q[Enviar ao Servidor]
-    Q --> R[Armazenar no Banco de Dados]
-
-    %% Fluxo de Mensagens
-    F --> S{Tipo de Chat}
-    S -->|Individual| T{Existe Sessão?}
-    T -->|Não| M
-    T -->|Sim| U[Criptografar com Chave de Sessão]
-    S -->|Grupo| V[Usar Sender Key]
-    U --> W[Enviar Mensagem Criptografada]
-    V --> W
-
-    %% Recebimento
-    W --> X[Servidor Encaminha]
-    X --> Y[Dispositivo Recebe]
-    Y --> Z[Descriptografar]
-    Z --> AA[Exibir Mensagem]
+%% Registro e Login Inicial
+A[Início] --> B[Registro de Usuário]
+B --> C[Gerar Par de Chaves - ElGamal]
+C --> D[Criptografar Chave Privada com Senha]
+D --> E[Enviar Chave Pública e Chave Privada Criptografada ao Servidor]
+E --> F[Login Bem Sucedido]
+%% Gestão de Contatos
+F --> H1[Adicionar Contato]
+H1 --> I1[Buscar Usuário por Username]
+I1 --> J1[Adicionar à Lista de Contatos]
+J1 --> K1[Pode Iniciar Conversa]
+%% Criação de Grupo
+F --> H2[Criar Grupo]
+H2 --> I2[Definir Nome do Grupo]
+I2 --> J2[Selecionar Contatos]
+J2 --> K2[Gerar Sender Key - AES-256]
+K2 --> L2[Criptografar Sender Key com ElGamal]
+L2 --> M2[Enviar Sender Key Criptografada para Cada Membro]
+M2 --> N2[Criar Grupo no Servidor]
+%% Adicionar Membro ao Grupo
+F --> H3[Adicionar Membro ao Grupo]
+H3 --> I3{É Admin?}
+I3 -->|Sim| J3[Selecionar Contato]
+J3 --> K3[Gerar Sender Key - AES-256]
+K3 --> L3[Criptografar Sender Key com ElGamal]
+L3 --> M3[Enviar Sender Key Criptografada para o Novo Membro]
+M3 --> N3[Adicionar ao Grupo]
+I3 -->|Não| O3[Erro: Sem Permissão]
+%% Estabelecimento de Sessão
+F --> H4[Iniciar Nova Conversa]
+H4 --> I4[Gerar Chave de Conversa - ElGamal]
+I4 --> J4[Criptografar Chave de Conversa com Chave Pública do Destinatário e do Remetente]
+J4 --> K4[Enviar Chave de Conversa Criptografada ao Servidor]
+%% Fluxo de Mensagens Individuais
+F --> M4{Tipo de Chat}
+M4 -->|Individual| N4{Possui Chave de Conversa?}
+N4 -->|Não| H4
+N4 -->|Sim| O4[Descriptografar Chave de Conversa com Chave Privada]
+O4 --> P4[Usar Chave de Conversa para Criptografar Mensagem]
+M4 -->|Grupo| Q4[Descriptografar Sender Key com Chave Privada]
+Q4 --> R4[Usar Sender Key para Criptografar Mensagem]
+P4 --> S4[Enviar Mensagem Criptografada]
+R4 --> S4
+%% Recebimento de Mensagens
+S4 --> T4[Servidor Armazena e Encaminha]
+T4 --> U4[Dispositivo Recebe Mensagem]
+U4 --> V4{Mensagem Criptografada?}
+V4 -->|Sim| W4[Descriptografar Mensagem com Chave de Conversa ou Sender Key]
+V4 -->|Não| X4[Erro de Descriptografia]
+W4 --> Y4[Exibir Mensagem]
+%% Acesso de Novo Dispositivo
+F --> Z1[Acessar de Novo Dispositivo]
+Z1 --> Z2[Login]
+Z2 --> Z3[Baixar Chave Privada Criptografada do Servidor]
+Z3 --> Z4[Descriptografar Chave Privada com Senha]
+Z4 --> Z5[Acesso às Conversas Existentes]
 ```
 
 ### Componentes Principais
@@ -161,44 +133,88 @@ graph TD
 
 #### Banco de Dados (SQLite)
 - Armazenamento de mensagens criptografadas
-- Chaves públicas dos dispositivos
-- Chaves de sessão criptografadas
+- Chaves públicas dos usuários
+- Chaves privadas criptografadas
 - Metadados de conversas e grupos
 
 ### Segurança
 
 1. **Chaves e Sessões**
-   - Chaves privadas permanecem apenas nos dispositivos
-   - Chaves de sessão criptografadas para cada dispositivo
-   - Sender keys para grupos
-   - Chaves de sessão armazenadas de forma segura no banco
+   - **Chaves Privadas:** Armazenadas no servidor, mas criptografadas com base na senha do usuário utilizando ElGamal.
+   - **Chaves Públicas:** Armazenadas no servidor para facilitar a criptografia das mensagens.
+   - **Sessões:** As chaves de conversa são criptografadas com as chaves públicas tanto dos remetentes quanto dos destinatários utilizando ElGamal, garantindo que apenas os participantes possam acessar o conteúdo das mensagens.
 
-2. **Rotação de Chaves**
-   - Iniciada pelo cliente
-   - Nova chave distribuída para todos os dispositivos
-   - Histórico de rotações mantido para auditoria
+2. **Criptografia**
+   - **Chaves de Conversa:** Utilizam ElGamal para criptografar as chaves com as chaves públicas dos remetentes e destinatários.
+   - **Sender Keys:** Utilizam ElGamal para criptografar as chaves de envio em grupos, garantindo que apenas os membros autorizados possam descriptografá-las.
+   - **Chave Privada:** Criptografada com uma chave derivada da senha do usuário, garantindo que apenas o usuário possa descriptografá-la.
 
-3. **Múltiplos Dispositivos**
-   - Cada dispositivo tem seu próprio par de chaves
-   - Chaves de sessão específicas por dispositivo
-   - Gerenciamento independente de sessões
+3. **Acesso de Novo Dispositivo**
+   - **Login Seguro:** O usuário pode acessar a aplicação de novos dispositivos realizando login e descriptografando sua chave privada com a senha.
+   - **Acesso às Chaves de Conversa e Sender Keys:** Com a chave privada disponível, o usuário pode descriptografar as chaves de conversa e Sender Keys armazenadas no servidor, permitindo o acesso contínuo às conversas existentes.
+
+4. **Armazenamento no Servidor**
+   - **Chaves Privadas:** Armazenadas de forma criptografada utilizando ElGamal, protegidas pela senha do usuário.
+   - **Chaves Públicas e Chaves de Conversa:** Armazenadas no servidor sem criptografia adicional, já que são utilizadas para criptografar mensagens direcionadas.
+
+5. **Gerenciamento de Grupos**
+   - **Sender Keys:** Cada grupo possui uma Sender Key única, gerada com AES-256 e criptografada com ElGamal para cada membro do grupo.
+   - **Adição de Membros:** Ao adicionar um novo membro a um grupo, a Sender Key é criptografada com a chave pública do novo membro utilizando ElGamal e enviada para ele.
+
+6. **Integridade e Autenticidade**
+   - **Assinaturas Digitais:** Todas as mensagens são assinadas digitalmente utilizando as chaves privadas dos remetentes, garantindo a autenticidade e integridade das mensagens.
+   - **Verificação de Assinaturas:** O destinatário verifica a assinatura utilizando a chave pública do remetente antes de descriptografar o conteúdo da mensagem.
+
+7. **Proteção Contra Ataques**
+   - **Replay Attacks:** Implementação de mecanismos para detectar e prevenir a repetição de mensagens.
+   - **Man-in-the-Middle:** Utilização de ElGamal para garantir que apenas os destinatários previstos possam descriptografar as mensagens, prevenindo interceptações não autorizadas.
+   - **Força Bruta:** As chaves utilizadas (ElGamal e AES-256) são escolhidas por sua robustez contra ataques de força bruta.
+
+8. **Backup e Recuperação**
+   - **Chaves Privadas:** O backup é feito no servidor de forma criptografada com ElGamal, permitindo a recuperação em caso de perda do dispositivo.
+   - **Chaves de Conversa e Sender Keys:** Armazenadas no servidor de forma criptografada, garantindo que possam ser recuperadas e descriptografadas em novos dispositivos após o login.
 
 ### Estrutura do Banco
 
-1. **Users e Devices**
-   - Usuários podem ter múltiplos dispositivos
-   - Cada dispositivo tem sua chave pública
-   - Rastreamento de status online/offline
+1. **Users**
+   - **id:** Identificador único do usuário.
+   - **username:** Nome de usuário.
+   - **password_hash:** Hash da senha do usuário.
+   - **encrypted_private_key:** Chave privada criptografada com base na senha.
+   - **created_at:** Data de criação da conta.
+   - **last_seen:** Última vez que o usuário esteve online.
 
-2. **Conversas e Mensagens**
-   - Suporte a conversas individuais e grupos
-   - Mensagens sempre criptografadas
-   - Status de entrega rastreado
+2. **Contacts**
+   - **user_id:** ID do usuário proprietário da lista de contatos.
+   - **contact_id:** ID do usuário adicionado aos contatos.
+   - **nickname:** Apelido para o contato.
+   - **added_at:** Data de adição do contato.
 
-3. **Chaves de Sessão**
-   - Armazenadas criptografadas por dispositivo
-   - Vinculadas a conversas específicas
-   - Sistema de rotação automática
+3. **Conversations**
+   - **id:** Identificador único da conversa.
+   - **type:** Tipo da conversa ("individual" ou "grupo").
+   - **created_at:** Data de criação da conversa.
+   - **group_id:** ID do grupo, se aplicável ("null para individual").
+
+4. **Messages**
+   - **id:** Identificador único da mensagem.
+   - **conversation_id:** ID da conversa a que a mensagem pertence.
+   - **sender_id:** ID do usuário que enviou a mensagem.
+   - **encrypted_content:** Conteúdo da mensagem criptografado.
+   - **created_at:** Data de envio da mensagem.
+   - **is_delivered:** Status de entrega da mensagem.
+
+5. **Groups**
+   - **id:** Identificador único do grupo.
+   - **name:** Nome do grupo.
+   - **sender_key:** Chave utilizada para criptografar mensagens no grupo (AES-256).
+   - **admin_id:** ID do administrador do grupo.
+   - **created_at:** Data de criação do grupo.
+
+6. **Group_Members**
+   - **group_id:** ID do grupo.
+   - **user_id:** ID do usuário membro do grupo.
+   - **joined_at:** Data de entrada no grupo.
 
 ## Instalação
 
@@ -209,7 +225,7 @@ graph TD
 
 ### Backend
 ```bash
-git clone https://github.com/seu-usuario/chat-e2ee.git
+git clone https://github.com/gugarauj07/chat-e2ee.git
 cd chat-e2ee/server
 go mod tidy
 go run main.go
