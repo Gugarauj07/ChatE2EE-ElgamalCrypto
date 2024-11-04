@@ -10,10 +10,9 @@ import (
 
 func main() {
 	// Conectar ao banco de dados
-	config.ConnectDatabase()
+	config.InitDatabase()
 
 	router := gin.Default()
-
 	// Configurar as rotas
 	routes.SetupRoutes(router)
 

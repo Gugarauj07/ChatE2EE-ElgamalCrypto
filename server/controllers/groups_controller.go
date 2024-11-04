@@ -5,18 +5,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"server/config"
 	"server/models"
 	"server/utils"
+	"server/config"
 )
 
-// CreateGroupRequest representa a payload para criar um grupo
+// CreateGroupRequest atualizado
 type CreateGroupRequest struct {
 	Name           string   `json:"name" binding:"required"`
 	ParticipantIDs []string `json:"participant_ids" binding:"required"`
+	SenderKey      []byte   `json:"sender_key" binding:"required"` // Sender key gerada pelo cliente
 }
 
-// CreateGroup cria um novo grupo
 func CreateGroup(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -30,24 +30,20 @@ func CreateGroup(c *gin.Context) {
 		return
 	}
 
-	// Gerar Sender Key (simplesmente um placeholder aqui)
-	senderKey := []byte("sender_key_placeholder") // Implementar geração real com AES-256
-
 	group := models.Group{
 		ID:        utils.GenerateUUID(),
 		Name:      req.Name,
-		SenderKey: senderKey,
+		SenderKey: req.SenderKey, // Armazena a sender key fornecida pelo cliente
 		AdminID:   userID,
 		CreatedAt: time.Now(),
 	}
 
-	// Criar o grupo no banco de dados
 	if err := config.DB.Create(&group).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar grupo"})
 		return
 	}
 
-	// Adicionar o administrador como membro do grupo
+	// Adicionar o administrador como membro
 	groupMember := models.GroupMember{
 		GroupID:  group.ID,
 		UserID:   userID,
@@ -61,12 +57,6 @@ func CreateGroup(c *gin.Context) {
 
 	// Adicionar outros participantes
 	for _, participantID := range req.ParticipantIDs {
-		// Verificar se o participante existe
-		var user models.User
-		if err := config.DB.First(&user, "id = ?", participantID).Error; err != nil {
-			continue // Ignorar usuários inexistentes
-		}
-
 		member := models.GroupMember{
 			GroupID:  group.ID,
 			UserID:   participantID,
@@ -74,41 +64,18 @@ func CreateGroup(c *gin.Context) {
 		}
 
 		if err := config.DB.Create(&member).Error; err != nil {
-			continue // Ignorar erros ao adicionar membros
+			continue
 		}
-
-		// Aqui você pode implementar a lógica para criptografar e enviar a Sender Key para os novos membros
 	}
 
 	c.JSON(http.StatusCreated, group)
 }
 
-// ListGroups lista todos os grupos que o usuário participa
-func ListGroups(c *gin.Context) {
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	var groups []models.Group
-	if err := config.DB.
-		Joins("JOIN group_members ON group_members.group_id = groups.id").
-		Where("group_members.user_id = ?", userID).
-		Find(&groups).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar grupos"})
-		return
-	}
-
-	c.JSON(http.StatusOK, groups)
-}
-
-// AddGroupMemberRequest representa a payload para adicionar um membro ao grupo
+// AddGroupMemberRequest atualizado
 type AddGroupMemberRequest struct {
 	UserID string `json:"user_id" binding:"required"`
 }
 
-// AddGroupMember adiciona um novo membro a um grupo
 func AddGroupMember(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -135,21 +102,7 @@ func AddGroupMember(c *gin.Context) {
 		return
 	}
 
-	// Verificar se o usuário a ser adicionado existe
-	var user models.User
-	if err := config.DB.First(&user, "id = ?", req.UserID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
-		return
-	}
-
-	// Verificar se o usuário já é membro
-	var existingMember models.GroupMember
-	if err := config.DB.Where("group_id = ? AND user_id = ?", groupID, req.UserID).First(&existingMember).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Usuário já é membro do grupo"})
-		return
-	}
-
-	// Adicionar o membro ao grupo
+	// Adicionar o novo membro
 	member := models.GroupMember{
 		GroupID:  groupID,
 		UserID:   req.UserID,
@@ -161,12 +114,28 @@ func AddGroupMember(c *gin.Context) {
 		return
 	}
 
-	// Aqui você pode implementar a lógica para criptografar e enviar a Sender Key para o novo membro
-
 	c.JSON(http.StatusOK, gin.H{"message": "Membro adicionado com sucesso"})
 }
 
-// RemoveGroupMember remove um membro do grupo
+// ListGroups lista todos os grupos do usuário
+func ListGroups(c *gin.Context) {
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	var groups []models.Group
+	if err := config.DB.Joins("JOIN group_members ON group_members.group_id = groups.id").
+		Where("group_members.user_id = ?", userID).Find(&groups).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar grupos"})
+		return
+	}
+
+	c.JSON(http.StatusOK, groups)
+}
+
+// RemoveGroupMember remove um membro de um grupo
 func RemoveGroupMember(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -176,6 +145,7 @@ func RemoveGroupMember(c *gin.Context) {
 
 	groupID := c.Param("id")
 	memberID := c.Param("user_id")
+
 	if groupID == "" || memberID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "IDs do grupo e do membro são obrigatórios"})
 		return
@@ -201,7 +171,5 @@ func RemoveGroupMember(c *gin.Context) {
 		return
 	}
 
-	// Aqui você pode implementar a lógica para remover as Sender Keys do membro removido
-
 	c.JSON(http.StatusOK, gin.H{"message": "Membro removido com sucesso"})
-} 
+}

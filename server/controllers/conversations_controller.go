@@ -32,19 +32,20 @@ func ListConversations(c *gin.Context) {
 
 // CreateConversationRequest representa a payload para criar uma conversa
 type CreateConversationRequest struct {
-	Type          string `json:"type" binding:"required,oneof=individual group"`
-	RecipientID   string `json:"recipient_id" binding:"required_if=Type individual"`
-	GroupName     string `json:"group_name" binding:"required_if=Type group"`
-	ParticipantIDs []string `json:"participant_ids" binding:"required_if=Type group"`
+	Type            string   `json:"type" binding:"required,oneof=individual group"`
+	RecipientID     string   `json:"recipient_id" binding:"required_if=Type individual"`
+	GroupName       string   `json:"group_name" binding:"required_if=Type group"`
+	ParticipantIDs  []string `json:"participant_ids" binding:"required_if=Type group"`
+	SenderKey       []byte   `json:"sender_key" binding:"required_if=Type group"`
 }
 
 // CreateConversation cria uma nova conversa
 func CreateConversation(c *gin.Context) {
-	// userID, err := utils.GetUserIDFromContext(c)
-	// if err != nil {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-	// 	return
-	// }
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
 
 	var req CreateConversationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,12 +60,84 @@ func CreateConversation(c *gin.Context) {
 	}
 
 	if req.Type == "individual" {
-		conversation.GroupID = nil
-		// Adicionar participantes individuais
-		// Aqui você pode implementar a lógica para adicionar os participantes
+		// Buscar o destinatário
+		var recipient models.User
+		if err := config.DB.First(&recipient, "id = ?", req.RecipientID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário destinatário não encontrado"})
+			return
+		}
+
+		// Gerar chave de conversa (AES-256)
+		conversationKey, err := utils.GenerateAES256Key()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gerar chave de conversa"})
+			return
+		}
+
+		// Criptografar a chave de conversa com as chaves públicas dos participantes
+		encryptedKeyUser, err := utils.EncryptWithElGamal(recipient.PublicKey, conversationKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criptografar chave de conversa para o destinatário"})
+			return
+		}
+
+		// Supondo que o administrador (userID) também tenha uma chave pública
+		var user models.User
+		if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário não encontrado"})
+			return
+		}
+
+		encryptedKeyAdmin, err := utils.EncryptWithElGamal(user.PublicKey, conversationKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criptografar chave de conversa para o administrador"})
+			return
+		}
+
+		// Concatenar as chaves criptografadas (poderia ser armazenado de forma mais estruturada)
+		conversation.EncryptedKey = append(encryptedKeyUser, encryptedKeyAdmin...)
+
+		// Adicionar participantes
+		conversation.Participating = []models.User{recipient, user}
 	} else if req.Type == "group" {
 		// Implementar a lógica para criar grupos
-		// Por exemplo, gerar sender key, criptografar, etc.
+
+		// Criar o grupo
+		group := models.Group{
+			ID:        utils.GenerateUUID(),
+			Name:      req.GroupName,
+			SenderKey: req.SenderKey,
+			AdminID:   userID,
+			CreatedAt: time.Now(),
+		}
+
+		if err := config.DB.Create(&group).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar grupo"})
+			return
+		}
+
+		conversation.GroupID = &group.ID
+
+		// Adicionar o grupo à conversa
+		// Relacionar participantes
+		participants := []models.User{}
+		for _, pid := range req.ParticipantIDs {
+			var participant models.User
+			if err := config.DB.First(&participant, "id = ?", pid).Error; err != nil {
+				continue // Ignorar se o usuário não for encontrado
+			}
+			participants = append(participants, participant)
+		}
+
+		// Adicionar o próprio usuário como participante
+		var user models.User
+		if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário não encontrado"})
+			return
+		}
+		participants = append(participants, user)
+
+		conversation.Participating = participants
 	}
 
 	// Criar a conversa no banco de dados
