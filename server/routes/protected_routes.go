@@ -31,8 +31,6 @@ func ProtectedRoutes(router *gin.Engine) {
 		{
 			groups.POST("", controllers.CreateGroup)
 			groups.GET("", controllers.ListGroups)
-			groups.POST("/:id/members", controllers.AddGroupMember)
-			groups.DELETE("/:id/members/:user_id", controllers.RemoveGroupMember)
 		}
 
 		// Rotas de conversas

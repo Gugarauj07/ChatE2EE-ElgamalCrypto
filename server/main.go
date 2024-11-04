@@ -2,21 +2,25 @@ package main
 
 import (
 	"log"
+	"server/config"
+	"server/controllers"
+	"server/routes"
 
 	"github.com/gin-gonic/gin"
-	"server/config"
-	"server/routes"
 )
 
 func main() {
-	// Conectar ao banco de dados
+	// Inicializar o banco de dados
 	config.InitDatabase()
 
-	router := gin.Default()
-	// Configurar as rotas
-	routes.SetupRoutes(router)
+	// Iniciar o Hub
+	go controllers.WSHub.Run()
 
-	// Iniciar o servidor na porta 8080
+	// Configurar as rotas
+	router := gin.Default()
+	routes.ProtectedRoutes(router)
+
+	// Iniciar o servidor
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Falha ao iniciar o servidor: %v", err)
 	}

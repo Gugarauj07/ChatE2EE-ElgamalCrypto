@@ -10,7 +10,7 @@ import (
 	"server/utils"
 )
 
-// ListConversations lista todas as conversas do usuário
+// ListConversations lista todas as conversas do usuário com suas chaves criptografadas
 func ListConversations(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -20,26 +20,43 @@ func ListConversations(c *gin.Context) {
 
 	var conversations []models.Conversation
 	if err := config.DB.
-		Joins("JOIN conversations_users ON conversations_users.conversation_id = conversations.id").
-		Where("conversations_users.user_id = ?", userID).
+		Joins("JOIN conversation_users ON conversation_users.conversation_id = conversations.id").
+		Where("conversation_users.user_id = ?", userID).
 		Find(&conversations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar conversas"})
 		return
 	}
 
-	c.JSON(http.StatusOK, conversations)
+	// Para cada conversa, obter a chave criptografada do usuário
+	var response []map[string]interface{}
+	for _, convo := range conversations {
+		var convoUser models.ConversationUser
+		if err := config.DB.Where("conversation_id = ? AND user_id = ?", convo.ID, userID).First(&convoUser).Error; err != nil {
+			continue // Ignorar se não encontrar
+		}
+
+		convoMap := map[string]interface{}{
+			"id":             convo.ID,
+			"created_at":     convo.CreatedAt,
+			"group_id":       convo.GroupID,
+			"encrypted_key":  convoUser.EncryptedKey,
+			"participants":   convo.Participating,
+			"messages_count": len(convo.Messages),
+		}
+
+		response = append(response, convoMap)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // CreateConversationRequest representa a payload para criar uma conversa
 type CreateConversationRequest struct {
-	Type            string   `json:"type" binding:"required,oneof=individual group"`
-	RecipientID     string   `json:"recipient_id" binding:"required_if=Type individual"`
-	GroupName       string   `json:"group_name" binding:"required_if=Type group"`
-	ParticipantIDs  []string `json:"participant_ids" binding:"required_if=Type group"`
-	SenderKey       []byte   `json:"sender_key" binding:"required_if=Type group"`
+	ParticipantIDs []string `json:"participant_ids" binding:"required"` // IDs dos participantes
+	SenderKey      []byte   `json:"sender_key" binding:"required"`      // Sender key gerada pelo cliente
 }
 
-// CreateConversation cria uma nova conversa
+// CreateConversation cria uma nova conversa tratada sempre como um grupo
 func CreateConversation(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -53,59 +70,30 @@ func CreateConversation(c *gin.Context) {
 		return
 	}
 
+	// Garantir que pelo menos um participante além do criador seja especificado
+	if len(req.ParticipantIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "É obrigatório adicionar pelo menos um participante"})
+		return
+	}
+
+	// Adicionar o próprio usuário à lista de participantes
+	participantIDs := append(req.ParticipantIDs, userID)
+
+	// Verificar se a conversa é individual (exatamente 2 participantes)
+	isIndividual := len(participantIDs) == 2
+
 	conversation := models.Conversation{
 		ID:        utils.GenerateUUID(),
-		Type:      req.Type,
 		CreatedAt: time.Now(),
 	}
 
-	if req.Type == "individual" {
-		// Buscar o destinatário
-		var recipient models.User
-		if err := config.DB.First(&recipient, "id = ?", req.RecipientID).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário destinatário não encontrado"})
-			return
-		}
-
-		// Gerar chave de conversa (AES-256)
-		conversationKey, err := utils.GenerateAES256Key()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gerar chave de conversa"})
-			return
-		}
-
-		// Criptografar a chave de conversa com as chaves públicas dos participantes
-		encryptedKeyUser, err := utils.EncryptWithElGamal(recipient.PublicKey, conversationKey)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criptografar chave de conversa para o destinatário"})
-			return
-		}
-
-		// Supondo que o administrador (userID) também tenha uma chave pública
-		var user models.User
-		if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário não encontrado"})
-			return
-		}
-
-		encryptedKeyAdmin, err := utils.EncryptWithElGamal(user.PublicKey, conversationKey)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criptografar chave de conversa para o administrador"})
-			return
-		}
-
-		// Concatenar as chaves criptografadas (poderia ser armazenado de forma mais estruturada)
-		conversation.EncryptedKey = append(encryptedKeyUser, encryptedKeyAdmin...)
-
-		// Adicionar participantes
-		conversation.Participating = []models.User{recipient, user}
-	} else if req.Type == "group" {
-		// Implementar a lógica para criar grupos
-
-		// Criar o grupo
+	if isIndividual {
+		conversation.GroupID = nil // Pode ser usado para indicar que é uma conversa individual
+	} else {
+		// Criar o grupo correspondente
 		group := models.Group{
 			ID:        utils.GenerateUUID(),
-			Name:      req.GroupName,
+			Name:      "", // Nome pode ser opcional ou definido como padrão
 			SenderKey: req.SenderKey,
 			AdminID:   userID,
 			CreatedAt: time.Now(),
@@ -117,33 +105,65 @@ func CreateConversation(c *gin.Context) {
 		}
 
 		conversation.GroupID = &group.ID
-
-		// Adicionar o grupo à conversa
-		// Relacionar participantes
-		participants := []models.User{}
-		for _, pid := range req.ParticipantIDs {
-			var participant models.User
-			if err := config.DB.First(&participant, "id = ?", pid).Error; err != nil {
-				continue // Ignorar se o usuário não for encontrado
-			}
-			participants = append(participants, participant)
-		}
-
-		// Adicionar o próprio usuário como participante
-		var user models.User
-		if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário não encontrado"})
-			return
-		}
-		participants = append(participants, user)
-
-		conversation.Participating = participants
 	}
 
-	// Criar a conversa no banco de dados
 	if err := config.DB.Create(&conversation).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar conversa"})
 		return
+	}
+
+	// Preparar as chaves criptografadas para cada participante
+	var encryptedKeys map[string][]byte
+	if isIndividual {
+		// Espera-se que o cliente envie as chaves criptografadas para os dois participantes
+		var individualKeys struct {
+			EncryptedKeyCreator   []byte `json:"encrypted_key_creator" binding:"required"`
+			EncryptedKeyReceiver  []byte `json:"encrypted_key_receiver" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&individualKeys); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chaves criptografadas são obrigatórias"})
+			return
+		}
+
+		encryptedKeys = map[string][]byte{
+			userID:          individualKeys.EncryptedKeyCreator,
+			req.ParticipantIDs[0]: individualKeys.EncryptedKeyReceiver,
+		}
+	} else {
+		// Espera-se que o cliente envie um mapa de chaves criptografadas para cada participante
+		var groupKeys struct {
+			EncryptedKeys map[string][]byte `json:"encrypted_keys" binding:"required"` // Chave por UserID
+		}
+
+		if err := c.ShouldBindJSON(&groupKeys); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chaves criptografadas são obrigatórias"})
+			return
+		}
+
+		encryptedKeys = groupKeys.EncryptedKeys
+	}
+
+	// Criar ConversationUser para cada participante
+	for _, pid := range participantIDs {
+		encryptedKey, exists := encryptedKeys[pid]
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada faltando para algum participante"})
+			return
+		}
+
+		conversationUser := models.ConversationUser{
+			ID:             utils.GenerateUUID(),
+			ConversationID: conversation.ID,
+			UserID:         pid,
+			EncryptedKey:   encryptedKey,
+			JoinedAt:       time.Now(),
+		}
+
+		if err := config.DB.Create(&conversationUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao associar participante à conversa"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, conversation)
@@ -185,7 +205,7 @@ func GetMessages(c *gin.Context) {
 
 // SendMessageRequest representa a payload para enviar uma mensagem
 type SendMessageRequest struct {
-	Content string `json:"content" binding:"required"`
+	Content []byte `json:"content" binding:"required"` // Conteúdo criptografado
 }
 
 // SendMessage envia uma nova mensagem em uma conversa
@@ -211,17 +231,14 @@ func SendMessage(c *gin.Context) {
 	// Verificar se o usuário participa da conversa
 	var conversation models.Conversation
 	if err := config.DB.
-		Joins("JOIN conversations_users ON conversations_users.conversation_id = conversations.id").
-		Where("conversations.id = ? AND conversations_users.user_id = ?", conversationID, userID).
+		Joins("JOIN conversation_users ON conversation_users.conversation_id = conversations.id").
+		Where("conversations.id = ? AND conversation_users.user_id = ?", conversationID, userID).
 		First(&conversation).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversa não encontrada"})
 		return
 	}
 
-	// Implementar a lógica de criptografia da mensagem aqui
-	// Por exemplo, criptografar o conteúdo usando a chave de conversa
-
-	encryptedContent := []byte(req.Content) // Placeholder para a mensagem criptografada
+	encryptedContent := req.Content // Conteúdo criptografado
 
 	message := models.Message{
 		ID:               utils.GenerateUUID(),
@@ -235,6 +252,13 @@ func SendMessage(c *gin.Context) {
 	if err := config.DB.Create(&message).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao enviar mensagem"})
 		return
+	}
+
+	// Criar uma mensagem para o Hub
+	WSHub.Broadcast <- Message{
+		Content:        string(encryptedContent),
+		ConversationID: conversationID,
+		SenderID:       userID,
 	}
 
 	c.JSON(http.StatusCreated, message)

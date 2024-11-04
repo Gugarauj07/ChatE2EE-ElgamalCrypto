@@ -14,7 +14,7 @@ func InitDatabase() {
 	var err error
 	DB, err = gorm.Open(sqlite.Open("chat_e2ee.db"), &gorm.Config{})
 	if err != nil {
-		log.Fatal("falha ao conectar ao banco de dados:", err)
+		log.Fatal("Falha ao conectar ao banco de dados:", err)
 	}
 
 	// Migrar os esquemas
@@ -28,6 +28,6 @@ func InitDatabase() {
 		&models.ConversationUser{},
 	)
 	if err != nil {
-		log.Fatal("falha ao migrar o banco de dados:", err)
+		log.Fatal("Falha ao migrar o banco de dados:", err)
 	}
 }
