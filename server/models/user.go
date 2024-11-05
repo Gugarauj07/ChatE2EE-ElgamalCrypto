@@ -10,7 +10,7 @@ type User struct {
 	Username            string    `json:"username" gorm:"unique"`
 	PasswordHash        string    `json:"-"`
 	EncryptedPrivateKey string    `json:"encrypted_private_key"`
-	PublicKey           PublicKeyData `json:"public_key" gorm:"embedded"`
+	PublicKey           string    `json:"public_key"`
 	CreatedAt           time.Time
 	LastSeen            time.Time
 
@@ -19,6 +19,7 @@ type User struct {
 	Groups        []Group        `gorm:"foreignKey:AdminID"`
 }
 
+// PublicKeyData ainda será útil para unmarshaling
 type PublicKeyData struct {
 	P string `json:"p"`
 	G string `json:"g"`

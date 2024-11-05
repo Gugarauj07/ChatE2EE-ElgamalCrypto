@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -17,7 +18,7 @@ type RegisterRequest struct {
 	Username            string         `json:"username" binding:"required,alphanum"`
 	Password            string         `json:"password" binding:"required"`
 	EncryptedPrivateKey string         `json:"encrypted_private_key" binding:"required"`
-	PublicKey           models.PublicKeyData  `json:"public_key" binding:"required"`
+	PublicKey           interface{}    `json:"public_key" binding:"required"`
 }
 
 // RegisterUser lida com o registro de novos usuários
@@ -25,6 +26,13 @@ func RegisterUser(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Converter a chave pública para JSON string
+	publicKeyJSON, err := json.Marshal(req.PublicKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato inválido da chave pública"})
 		return
 	}
 
@@ -49,7 +57,7 @@ func RegisterUser(c *gin.Context) {
 		Username:            req.Username,
 		PasswordHash:        hashedPassword,
 		EncryptedPrivateKey: req.EncryptedPrivateKey,
-		PublicKey:           req.PublicKey,
+		PublicKey:           string(publicKeyJSON),
 		CreatedAt:           time.Now(),
 		LastSeen:            time.Now(),
 	}
@@ -69,6 +77,8 @@ func RegisterUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Usuário registrado com sucesso",
 		"token": token,
+		"id": user.ID,
+		"username": user.Username,
 	})
 }
 
@@ -108,9 +118,11 @@ func LoginUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":               "Login bem-sucedido",
-		"token":                 token,
+		"message": "Login bem-sucedido",
+		"token": token,
 		"encrypted_private_key": user.EncryptedPrivateKey,
+		"id": user.ID,
+		"username": user.Username,
 	})
 }
 
@@ -162,5 +174,12 @@ func GetPublicKey(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"public_key": user.PublicKey})
+	// Parse o JSON string para um map antes de enviar
+	var publicKey interface{}
+	if err := json.Unmarshal([]byte(user.PublicKey), &publicKey); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar chave pública"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"public_key": publicKey})
 }
