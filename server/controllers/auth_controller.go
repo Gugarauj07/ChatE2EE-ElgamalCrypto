@@ -14,10 +14,10 @@ import (
 
 // RegisterRequest representa a payload para registro de usuário
 type RegisterRequest struct {
-	Username            string `json:"username" binding:"required,alphanum"`
-	Password            string `json:"password" binding:"required"`
-	EncryptedPrivateKey []byte `json:"encrypted_private_key" binding:"required"`
-	PublicKey           []byte `json:"public_key" binding:"required"`
+	Username            string         `json:"username" binding:"required,alphanum"`
+	Password            string         `json:"password" binding:"required"`
+	EncryptedPrivateKey string         `json:"encrypted_private_key" binding:"required"`
+	PublicKey           models.PublicKeyData  `json:"public_key" binding:"required"`
 }
 
 // RegisterUser lida com o registro de novos usuários
@@ -59,7 +59,17 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Usuário registrado com sucesso"})
+	// Gerar token JWT para login automático após registro
+	token, err := services.GenerateJWT(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gerar token"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Usuário registrado com sucesso",
+		"token": token,
+	})
 }
 
 // LoginRequest representa a payload para login de usuário
@@ -106,8 +116,8 @@ func LoginUser(c *gin.Context) {
 
 // UpdateKeysRequest representa a payload para atualizar as chaves do usuário
 type UpdateKeysRequest struct {
-	EncryptedPrivateKey []byte `json:"encrypted_private_key" binding:"required"`
-	PublicKey          []byte `json:"public_key" binding:"required"`
+	EncryptedPrivateKey string        `json:"encrypted_private_key" binding:"required"`
+	PublicKey           models.PublicKeyData `json:"public_key" binding:"required"`
 }
 
 // UpdateKeys atualiza as chaves do usuário

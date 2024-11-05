@@ -1,12 +1,13 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api'; // URL do backend
+const API_URL = 'http://localhost:8080'; // Removido /api da URL base
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true // Adicionar esta configuração
 });
 
 // Adicionar um interceptador de requisição para incluir o token Bearer
