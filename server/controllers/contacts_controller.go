@@ -19,18 +19,29 @@ func ListContacts(c *gin.Context) {
 	}
 
 	var contacts []models.Contact
-	if err := config.DB.Where("user_id = ?", userID).Find(&contacts).Error; err != nil {
+	if err := config.DB.Where("user_id = ?", userID).Preload("Contact").Find(&contacts).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar contatos"})
 		return
 	}
 
-	c.JSON(http.StatusOK, contacts)
+	// Transformar os contatos para incluir informações úteis
+	var response []gin.H
+	for _, contact := range contacts {
+		response = append(response, gin.H{
+			"id":        contact.ID,
+			"username":  contact.Contact.Username,
+			"nickname":  contact.Nickname,
+			"added_at":  contact.AddedAt,
+			"public_key": contact.Contact.PublicKey,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // AddContactRequest representa a payload para adicionar um contato
 type AddContactRequest struct {
 	ContactUsername string `json:"contact_username" binding:"required,alphanum"`
-	Nickname        string `json:"nickname" binding:"required"`
 }
 
 // AddContact adiciona um novo contato ao usuário
@@ -54,6 +65,12 @@ func AddContact(c *gin.Context) {
 		return
 	}
 
+	// Verificar se o usuário está tentando adicionar a si mesmo
+	if contactUser.ID == userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você não pode adicionar a si mesmo como contato"})
+		return
+	}
+
 	// Verificar se já é contato
 	var existingContact models.Contact
 	if err := config.DB.Where("user_id = ? AND contact_id = ?", userID, contactUser.ID).First(&existingContact).Error; err == nil {
@@ -63,9 +80,9 @@ func AddContact(c *gin.Context) {
 
 	// Adicionar o contato
 	contact := models.Contact{
+		ID:        utils.GenerateUUID(),
 		UserID:    userID,
 		ContactID: contactUser.ID,
-		Nickname:  req.Nickname,
 		AddedAt:   time.Now(),
 	}
 
@@ -74,7 +91,13 @@ func AddContact(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Contato adicionado com sucesso"})
+	c.JSON(http.StatusCreated, gin.H{
+		"id":         contact.ID,
+		"username":   contactUser.Username,
+		"nickname":   contactUser.Username, // Usando o username como nickname
+		"added_at":   contact.AddedAt,
+		"public_key": contactUser.PublicKey,
+	})
 }
 
 // RemoveContact remove um contato do usuário
@@ -105,4 +128,4 @@ func RemoveContact(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Contato removido com sucesso"})
-} 
+}

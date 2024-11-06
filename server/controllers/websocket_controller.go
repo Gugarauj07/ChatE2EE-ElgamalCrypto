@@ -113,9 +113,9 @@ func (c *Client) writePump() {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Permitir todas as origens (para desenvolvimento; ajuste conforme necessário)
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		return origin == "http://localhost:5173"
 	},
 }
 

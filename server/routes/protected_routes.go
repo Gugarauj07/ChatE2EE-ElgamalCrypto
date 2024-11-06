@@ -21,8 +21,8 @@ func ProtectedRoutes(router *gin.Engine) {
 		// Rotas de contatos
 		contacts := protected.Group("/contacts")
 		{
-			contacts.GET("", controllers.ListContacts)
-			contacts.POST("", controllers.AddContact)
+			contacts.GET("/", controllers.ListContacts)
+			contacts.POST("/add", controllers.AddContact)
 			contacts.DELETE("/:id", controllers.RemoveContact)
 		}
 

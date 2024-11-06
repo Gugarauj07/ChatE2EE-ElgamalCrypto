@@ -5,8 +5,12 @@ import (
 )
 
 type Contact struct {
-	UserID     string    `gorm:"primaryKey"`
-	ContactID  string    `gorm:"primaryKey"`
-	Nickname   string    `gorm:"not null"`
-	AddedAt    time.Time
+	ID        string    `gorm:"primaryKey" json:"id"`
+	UserID    string    `gorm:"not null" json:"user_id"`
+	ContactID string    `gorm:"not null" json:"contact_id"`
+	Nickname  string    `json:"nickname"`
+	AddedAt   time.Time `json:"added_at"`
+
+	User    User `gorm:"foreignKey:UserID"`
+	Contact User `gorm:"foreignKey:ContactID"`
 }
