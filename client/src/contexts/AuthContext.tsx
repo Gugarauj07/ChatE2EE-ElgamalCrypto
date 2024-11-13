@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
 import { decryptPrivateKey } from '../utils/cryptoUtils';
 import { PrivateKey } from '../utils/elgamal';
@@ -7,14 +7,16 @@ import { set, get } from 'idb-keyval';
 interface AuthContextType {
   token: string | null;
   privateKey: PrivateKey | null;
+  user: string | null;
   login: (token: string, encryptedPrivateKey: string, password: string) => Promise<void>;
   logout: () => void;
-  setAuthData: (data: { token: string; privateKey: PrivateKey }) => void;
+  setAuthData: (data: { token: string; privateKey: PrivateKey; user: string }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   token: null,
   privateKey: null,
+   user: null,
   login: async () => {},
   logout: () => {},
   setAuthData: async () => {},
@@ -23,6 +25,7 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
+  const [user, setUser] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPrivateKey = async () => {
@@ -76,14 +79,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const setAuthData = async (data: { token: string; privateKey: PrivateKey }) => {
+  const setAuthData = async (data: { token: string; privateKey: PrivateKey; user: string }) => {
     setToken(data.token);
     setPrivateKey(data.privateKey);
+    setUser(data.user);
     await set('privateKey', data.privateKey);
   };
 
   return (
-    <AuthContext.Provider value={{ token, privateKey, login: loginUser, logout, setAuthData }}>
+    <AuthContext.Provider value={{ token, privateKey, user, login: loginUser, logout, setAuthData }}>
       {children}
     </AuthContext.Provider>
   );

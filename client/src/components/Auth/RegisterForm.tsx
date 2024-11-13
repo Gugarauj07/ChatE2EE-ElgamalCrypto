@@ -46,7 +46,8 @@ const RegisterForm = () => {
       // Definir os dados de autenticação diretamente
       setAuthData({
         token: response.data.token,
-        privateKey: privateKey, // Usar a chave privada já gerada
+        privateKey: privateKey,
+        user: username
       });
 
       navigate('/dashboard');
