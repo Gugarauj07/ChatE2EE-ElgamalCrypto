@@ -26,7 +26,7 @@ const ContactsList: React.FC<ContactsListProps> = ({ contacts, onStartChat }) =>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-gray-200"
+            className="h-8 w-8 text-gray-400 hover:text-gray-900"
             onClick={() => onStartChat(contact)}
           >
             <MessageSquare className="h-4 w-4" />
