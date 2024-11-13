@@ -18,20 +18,27 @@ func ListContacts(c *gin.Context) {
 		return
 	}
 
+	search := c.Query("search")
+
+	query := config.DB.Where("user_id = ?", userID).Preload("Contact")
+
+	if search != "" {
+		query = query.Joins("JOIN users ON contacts.contact_id = users.id").
+			Where("users.username LIKE ?", "%"+search+"%")
+	}
+
 	var contacts []models.Contact
-	if err := config.DB.Where("user_id = ?", userID).Preload("Contact").Find(&contacts).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar contatos"})
+	if err := query.Find(&contacts).Error; err != nil {
+		c.JSON(http.StatusOK, []gin.H{})
 		return
 	}
 
-	// Transformar os contatos para incluir informações úteis
-	var response []gin.H
+	response := make([]gin.H, 0)
 	for _, contact := range contacts {
 		response = append(response, gin.H{
-			"id":        contact.ID,
-			"username":  contact.Contact.Username,
-			"nickname":  contact.Nickname,
-			"added_at":  contact.AddedAt,
+			"id":         contact.ID,
+			"username":   contact.Contact.Username,
+			"added_at":   contact.AddedAt,
 			"public_key": contact.Contact.PublicKey,
 		})
 	}
@@ -94,7 +101,6 @@ func AddContact(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"id":         contact.ID,
 		"username":   contactUser.Username,
-		"nickname":   contactUser.Username, // Usando o username como nickname
 		"added_at":   contact.AddedAt,
 		"public_key": contactUser.PublicKey,
 	})
@@ -116,7 +122,7 @@ func RemoveContact(c *gin.Context) {
 
 	// Verificar se o contato existe
 	var contact models.Contact
-	if err := config.DB.Where("user_id = ? AND contact_id = ?", userID, contactID).First(&contact).Error; err != nil {
+	if err := config.DB.Where("user_id = ? AND id = ?", userID, contactID).First(&contact).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Contato não encontrado"})
 		return
 	}

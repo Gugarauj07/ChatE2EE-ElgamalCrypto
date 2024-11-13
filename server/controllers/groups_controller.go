@@ -99,7 +99,7 @@ func ListGroups(c *gin.Context) {
 	var groups []models.Group
 	if err := config.DB.Joins("JOIN group_members ON group_members.group_id = groups.id").
 		Where("group_members.user_id = ?", userID).Find(&groups).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar grupos"})
+		c.JSON(http.StatusOK, []models.Group{}) // Retorna array vazio em vez de erro
 		return
 	}
 

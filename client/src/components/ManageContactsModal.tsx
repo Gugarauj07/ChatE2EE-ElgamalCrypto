@@ -1,30 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { X, UserPlus, Trash2 } from 'lucide-react';
+import { X, UserPlus, Trash2, Search, Loader2 } from 'lucide-react';
 import { Contact } from '../types/contact';
 import { contactService } from '../services/contactService';
 import { ScrollArea } from './ui/scroll-area';
 import { useToast } from '../hooks/use-toast';
+import { showErrorToast } from '../utils/errorHandler';
 
 const ManageContactsModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [contactName, setContactName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
 
-  const loadContacts = async () => {
+  const loadContacts = async (search?: string) => {
+    setIsSearching(true);
     try {
-      const contactsList = await contactService.getContacts();
+      const contactsList = await contactService.getContacts(search);
       setContacts(contactsList);
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os contatos",
-        variant: "destructive",
-      });
+      showErrorToast(error);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -34,24 +35,30 @@ const ManageContactsModal = () => {
     }
   }, [isOpen]);
 
-  const handleAddContact = async () => {
-    if (!contactName.trim()) return;
+  // Debounce para a pesquisa
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isOpen) {
+        loadContacts(searchTerm || undefined);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, isOpen]);
+
+  const handleAddContact = async (username: string) => {
+    if (!username.trim()) return;
 
     setIsLoading(true);
     try {
-      const newContact = await contactService.addContact(contactName);
+      const newContact = await contactService.addContact(username);
       setContacts(prev => [...prev, newContact]);
-      setContactName('');
       toast({
         title: "Sucesso",
         description: "Contato adicionado com sucesso",
       });
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.response?.data?.message || "Erro ao adicionar contato",
-        variant: "destructive",
-      });
+    } catch (error) {
+      showErrorToast(error);
     } finally {
       setIsLoading(false);
     }
@@ -66,11 +73,7 @@ const ManageContactsModal = () => {
         description: "Contato removido com sucesso",
       });
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao remover contato",
-        variant: "destructive",
-      });
+      showErrorToast(error);
     }
   };
 
@@ -98,22 +101,40 @@ const ManageContactsModal = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
                 type="text"
-                placeholder="Username do contato"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                className="flex-1"
+                placeholder="Procurar ou adicionar contato..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-24"
               />
-              <Button onClick={handleAddContact} disabled={isLoading}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Adicionar
-              </Button>
+              {searchTerm && (
+                <Button
+                  size="sm"
+                  onClick={() => handleAddContact(searchTerm)}
+                  disabled={isLoading}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             <ScrollArea className="h-[300px] pr-4">
-              {contacts.length > 0 ? (
+              {isSearching ? (
+                <div className="flex justify-center items-center h-32">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                </div>
+              ) : contacts.length > 0 ? (
                 <div className="space-y-2">
                   {contacts.map((contact) => (
                     <div
@@ -134,7 +155,7 @@ const ManageContactsModal = () => {
                 </div>
               ) : (
                 <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  Nenhum contato adicionado ainda
+                  {searchTerm ? "Nenhum contato encontrado" : "Nenhum contato adicionado ainda"}
                 </p>
               )}
             </ScrollArea>

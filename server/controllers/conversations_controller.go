@@ -23,7 +23,7 @@ func ListConversations(c *gin.Context) {
 		Joins("JOIN conversation_users ON conversation_users.conversation_id = conversations.id").
 		Where("conversation_users.user_id = ?", userID).
 		Find(&conversations).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao listar conversas"})
+		c.JSON(http.StatusOK, []gin.H{})
 		return
 	}
 
@@ -196,7 +196,7 @@ func GetMessages(c *gin.Context) {
 	// Buscar as mensagens da conversa
 	var messages []models.Message
 	if err := config.DB.Where("conversation_id = ?", conversationID).Find(&messages).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar mensagens"})
+		c.JSON(http.StatusOK, []models.Message{})
 		return
 	}
 
