@@ -30,6 +30,4 @@ export interface User {
   id: string;
   username: string;
   publicKey: PublicKey;
-  created_at: string;
-  last_seen: string;
 }

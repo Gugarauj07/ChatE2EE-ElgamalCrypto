@@ -7,6 +7,7 @@ import { useContacts } from './ContactContext';
 import useAuth from '@/hooks/useAuth';
 import { decryptMessage, encryptMessage } from '../utils/cryptoUtils';
 import { ElGamal } from '@/utils/elgamal';
+import { PublicKey } from '@/utils/elgamal';
 
 interface ConversationContextType {
   conversations: Conversation[];
@@ -145,7 +146,10 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Função para criptografar a senderKey com a chave pública de cada participante
-  const encryptSenderKey = (senderKey: string, participantsPublicKeys: { [key: string]: any }): { [key: string]: string } => {
+  const encryptSenderKey = (
+    senderKey: string,
+    participantsPublicKeys: { [key: string]: PublicKey }
+  ): { [key: string]: string } => {
     const encryptedKeys: { [key: string]: string } = {};
 
     for (const pid in participantsPublicKeys) {
@@ -158,20 +162,32 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
 
   const startConversation = async (participantUsername: string) => {
     try {
+      console.log('Dados do usuário:', user);
+
       if (!user?.id || !user?.publicKey) {
+        console.error('Dados do usuário:', {
+          id: user?.id,
+          publicKey: user?.publicKey
+        });
         throw new Error('Usuário não autenticado ou dados incompletos');
       }
 
       const participant = contacts.find(contact => contact.username === participantUsername);
-      if (!participant?.id || !participant?.public_key) {
+      console.log('Dados do participante:', participant);
+
+      if (!participant?.id || !participant?.publicKey) {
+        console.error('Dados do participante:', {
+          id: participant?.id,
+          publicKey: participant?.publicKey
+        });
         throw new Error('Participante não encontrado ou dados incompletos');
       }
 
       const senderKey = generateSenderKey();
 
-       const participantsPublicKeys: { [key: string]: any } = {
+      const participantsPublicKeys: { [key: string]: PublicKey } = {
         [user.id]: user.publicKey,
-        [participant.id]: participant.public_key
+        [participant.id]: participant.publicKey
       };
 
       const encryptedKeys = encryptSenderKey(senderKey, participantsPublicKeys);
@@ -188,7 +204,7 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       showErrorToast('Erro ao iniciar conversa.');
       console.error('Erro ao iniciar conversa:', error);
-      throw error; // Propagar o erro para tratamento no componente
+      throw error;
     }
   };
 

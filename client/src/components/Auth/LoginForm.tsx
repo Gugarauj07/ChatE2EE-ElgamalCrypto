@@ -19,8 +19,8 @@ const LoginForm = () => {
     setError('');
     try {
       const response = await api.post('/auth/login', { username, password });
-      const { token, encrypted_private_key } = response.data;
-      await login(token, encrypted_private_key, password);
+      const { token, encrypted_private_key, user } = response.data;
+      await login(token, encrypted_private_key, password, user);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao fazer login');

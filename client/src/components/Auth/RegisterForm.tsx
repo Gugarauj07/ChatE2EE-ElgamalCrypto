@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserPlus as UserPlusIcon } from 'lucide-react';
 import { ElGamal } from '../../utils/elgamal';
 import { encryptPrivateKey } from '../../utils/cryptoUtils';
+import { PublicKey } from '../../utils/elgamal';
 
 const RegisterForm = () => {
   const { setAuthData } = useAuth();
@@ -26,28 +27,32 @@ const RegisterForm = () => {
     }
 
     try {
-      // Gerar chaves ElGamal
       const elgamal = new ElGamal();
       const { publicKey, privateKey } = elgamal.generateKeys();
 
-      // Criptografar a chave privada com a senha
       const encPrivateKey = await encryptPrivateKey(privateKey, password);
 
-      // Preparar os dados para envio
       const registrationData = {
         username,
         password,
-        public_key: publicKey,
+        publicKey: publicKey as PublicKey,
         encrypted_private_key: encPrivateKey,
       };
 
       const response = await api.post('/auth/register', registrationData);
 
-      // Definir os dados de autenticação diretamente
+      if (!response.data.user?.id || !response.data.user?.publicKey) {
+        throw new Error('Dados do usuário incompletos na resposta do servidor');
+      }
+
       setAuthData({
         token: response.data.token,
         privateKey: privateKey,
-        user: username
+        user: {
+          id: response.data.user.id,
+          username: response.data.user.username,
+          publicKey: publicKey as PublicKey
+        }
       });
 
       navigate('/dashboard');

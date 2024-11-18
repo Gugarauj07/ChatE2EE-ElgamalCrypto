@@ -9,7 +9,7 @@ interface AuthContextType {
   token: string | null;
   privateKey: PrivateKey | null;
   user: User | null;
-  login: (token: string, encryptedPrivateKey: string, password: string) => Promise<void>;
+  login: (token: string, encryptedPrivateKey: string, password: string, userData: User) => Promise<void>;
   logout: () => void;
   setAuthData: (data: { token: string; privateKey: PrivateKey; user: User }) => Promise<void>;
 }
@@ -33,10 +33,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (token) {
         try {
           const response = await api.get('/api/user/profile');
-          setUser(response.data);
+
+          if (!response.data?.id || !response.data?.publicKey) {
+            console.error('Dados do usuário incompletos');
+            logout();
+            return;
+          }
+
+          setUser({
+            id: response.data.id,
+            username: response.data.username,
+            publicKey: response.data.publicKey
+          });
         } catch (err) {
           console.error('Erro ao carregar dados do usuário:', err);
-          logout(); // Fazer logout se não conseguir carregar os dados do usuário
+          logout();
         }
       }
     };
@@ -73,12 +84,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token]);
 
-  const loginUser = async (newToken: string, encryptedPrivateKey: string, password: string) => {
+  const loginUser = async (newToken: string, encryptedPrivateKey: string, password: string, userData: User) => {
     setToken(newToken);
     try {
       const decryptedPrivateKey = await decryptPrivateKey(encryptedPrivateKey, password);
       setPrivateKey(decryptedPrivateKey);
       await set('privateKey', decryptedPrivateKey);
+      setUser(userData);
     } catch (err) {
       console.error('Erro ao descriptografar ou armazenar a chave privada:', err);
       throw new Error('Falha na descriptografia da chave privada.');
