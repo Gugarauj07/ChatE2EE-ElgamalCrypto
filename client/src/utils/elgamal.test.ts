@@ -17,7 +17,13 @@ describe('ElGamal', () => {
   test('Criptografia e descriptografia', () => {
     const message = 'ELGAMAL WEBCHAT CRIPTOGRAPHY';
     const encrypted = elgamal.encrypt(message, elgamal.publicKey);
-    const decrypted = elgamal.decrypt(encrypted, elgamal.privateKey, elgamal.publicKey.p);
+
+    // Verificar se o objeto encrypted tem todas as propriedades necessárias
+    expect(encrypted).toHaveProperty('a');
+    expect(encrypted).toHaveProperty('b');
+    expect(encrypted).toHaveProperty('p');
+
+    const decrypted = elgamal.decrypt(encrypted, elgamal.privateKey);
     expect(decrypted).toBe(message);
   });
 
@@ -25,8 +31,34 @@ describe('ElGamal', () => {
     const message = 'Test message';
     const newElgamal = new ElGamal();
     const encrypted = elgamal.encrypt(message, newElgamal.publicKey);
-    const decrypted = newElgamal.decrypt(encrypted, newElgamal.privateKey, newElgamal.publicKey.p);
+    const decrypted = newElgamal.decrypt(encrypted, newElgamal.privateKey);
     expect(decrypted).toBe(message);
+  });
+
+  test('Teste de formato da mensagem criptografada', () => {
+    const message = 'Test message';
+    const encrypted = elgamal.encrypt(message, elgamal.publicKey);
+
+    // Verificar se os valores são strings não vazias
+    expect(typeof encrypted.a).toBe('string');
+    expect(encrypted.a.length).toBeGreaterThan(0);
+    expect(typeof encrypted.b).toBe('string');
+    expect(encrypted.b.length).toBeGreaterThan(0);
+    expect(typeof encrypted.p).toBe('string');
+    expect(encrypted.p.length).toBeGreaterThan(0);
+
+    // Verificar se p corresponde ao valor da chave pública
+    expect(encrypted.p).toBe(elgamal.publicKey.p);
+  });
+
+  test('Erro ao descriptografar com chave inválida', () => {
+    const message = 'Test message';
+    const encrypted = elgamal.encrypt(message, elgamal.publicKey);
+    encrypted.a = '0'; // Forçar um erro
+
+    expect(() => {
+      elgamal.decrypt(encrypted, elgamal.privateKey);
+    }).toThrow("Invalid encrypted message: 'a' cannot be zero");
   });
 
   test('Teste de primalidade', () => {
@@ -63,5 +95,35 @@ describe('ElGamal', () => {
     const endTime = Date.now();
     console.log(`Tempo de geração de chaves: ${endTime - startTime}ms`);
     expect(endTime - startTime).toBeLessThan(1000); // Espera-se que seja menor que 1 segundo
+  });
+
+  test('Teste de string criptografada formatada', () => {
+    const message = 'Test message';
+    const encrypted = elgamal.encrypt(message, elgamal.publicKey);
+    const formattedString = `${encrypted.a};${encrypted.b};${encrypted.p}`;
+
+    // Simular o processo que acontece no ConversationContext
+    const [a, b, p] = formattedString.split(';');
+    const reconstructedEncrypted = { a, b, p };
+
+    const decrypted = elgamal.decrypt(reconstructedEncrypted, elgamal.privateKey);
+    expect(decrypted).toBe(message);
+  });
+
+  test('Criptografia com mensagens de diferentes tamanhos', () => {
+    const messages = [
+      'A',
+      'Hello',
+      'This is a longer message',
+      'Special chars: !@#$%^&*()',
+      'Numbers: 1234567890',
+      'Unicode: 你好世界'
+    ];
+
+    messages.forEach(message => {
+      const encrypted = elgamal.encrypt(message, elgamal.publicKey);
+      const decrypted = elgamal.decrypt(encrypted, elgamal.privateKey);
+      expect(decrypted).toBe(message);
+    });
   });
 });

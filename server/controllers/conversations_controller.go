@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/base64"
 	"net/http"
 	"time"
 
@@ -35,11 +36,14 @@ func ListConversations(c *gin.Context) {
 			continue // Ignorar se não encontrar
 		}
 
+		// Codificar a chave criptografada em base64
+		encryptedKeyStr := base64.StdEncoding.EncodeToString(convoUser.EncryptedKey)
+
 		convoMap := map[string]interface{}{
 			"id":             convo.ID,
 			"created_at":     convo.CreatedAt,
 			"group_id":       convo.GroupID,
-			"encrypted_key":  convoUser.EncryptedKey,
+			"encrypted_key":  encryptedKeyStr,
 			"participants":   convo.Participating,
 			"messages_count": len(convo.Messages),
 		}
@@ -52,11 +56,11 @@ func ListConversations(c *gin.Context) {
 
 // CreateConversationRequest representa a payload para criar uma conversa
 type CreateConversationRequest struct {
-	ParticipantIDs []string `json:"participant_ids" binding:"required"` // IDs dos participantes
-	SenderKey      []byte   `json:"sender_key" binding:"required"`      // Sender key gerada pelo cliente
+	ParticipantIDs []string            `json:"ParticipantIDs" binding:"required"`
+	EncryptedKeys  map[string]string  `json:"EncryptedKeys" binding:"required"` // Chave por UserID
 }
 
-// CreateConversation cria uma nova conversa tratada sempre como um grupo
+// CreateConversation cria uma nova conversa recebendo participantes e chaves criptografadas do cliente
 func CreateConversation(c *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -79,32 +83,10 @@ func CreateConversation(c *gin.Context) {
 	// Adicionar o próprio usuário à lista de participantes
 	participantIDs := append(req.ParticipantIDs, userID)
 
-	// Verificar se a conversa é individual (exatamente 2 participantes)
-	isIndividual := len(participantIDs) == 2
-
+	// Criar a conversa
 	conversation := models.Conversation{
 		ID:        utils.GenerateUUID(),
 		CreatedAt: time.Now(),
-	}
-
-	if isIndividual {
-		conversation.GroupID = nil // Pode ser usado para indicar que é uma conversa individual
-	} else {
-		// Criar o grupo correspondente
-		group := models.Group{
-			ID:        utils.GenerateUUID(),
-			Name:      "", // Nome pode ser opcional ou definido como padrão
-			SenderKey: req.SenderKey,
-			AdminID:   userID,
-			CreatedAt: time.Now(),
-		}
-
-		if err := config.DB.Create(&group).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar grupo"})
-			return
-		}
-
-		conversation.GroupID = &group.ID
 	}
 
 	if err := config.DB.Create(&conversation).Error; err != nil {
@@ -112,43 +94,18 @@ func CreateConversation(c *gin.Context) {
 		return
 	}
 
-	// Preparar as chaves criptografadas para cada participante
-	var encryptedKeys map[string][]byte
-	if isIndividual {
-		// Espera-se que o cliente envie as chaves criptografadas para os dois participantes
-		var individualKeys struct {
-			EncryptedKeyCreator   []byte `json:"encrypted_key_creator" binding:"required"`
-			EncryptedKeyReceiver  []byte `json:"encrypted_key_receiver" binding:"required"`
-		}
-
-		if err := c.ShouldBindJSON(&individualKeys); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Chaves criptografadas são obrigatórias"})
-			return
-		}
-
-		encryptedKeys = map[string][]byte{
-			userID:          individualKeys.EncryptedKeyCreator,
-			req.ParticipantIDs[0]: individualKeys.EncryptedKeyReceiver,
-		}
-	} else {
-		// Espera-se que o cliente envie um mapa de chaves criptografadas para cada participante
-		var groupKeys struct {
-			EncryptedKeys map[string][]byte `json:"encrypted_keys" binding:"required"` // Chave por UserID
-		}
-
-		if err := c.ShouldBindJSON(&groupKeys); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Chaves criptografadas são obrigatórias"})
-			return
-		}
-
-		encryptedKeys = groupKeys.EncryptedKeys
-	}
-
-	// Criar ConversationUser para cada participante
+	// Criar ConversationUser para cada participante com as chaves criptografadas enviadas pelo cliente
 	for _, pid := range participantIDs {
-		encryptedKey, exists := encryptedKeys[pid]
+		encryptedKeyStr, exists := req.EncryptedKeys[pid]
 		if !exists {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada faltando para algum participante"})
+			return
+		}
+
+		// Decodificar a chave criptografada de base64 para []byte
+		encryptedKey, err := base64.StdEncoding.DecodeString(encryptedKeyStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada inválida para algum participante"})
 			return
 		}
 

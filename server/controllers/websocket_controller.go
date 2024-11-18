@@ -109,13 +109,13 @@ func (c *Client) writePump() {
 	}
 }
 
-// Define o Upgrader com configurações apropriadas
+// Defina o upgrader com a função CheckOrigin adequada
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		return origin == "http://localhost:5173"
+		// Permitir todas as origens para desenvolvimento (não recomendado para produção)
+		return true
 	},
 }
 
@@ -124,17 +124,18 @@ var WSHub = NovoHub()
 
 // ServeWS atualiza a conexão HTTP para WebSocket
 func ServeWS(c *gin.Context) {
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
+	log.Println("Tentando estabelecer conexão WebSocket")
+	token := c.Query("token")
+	log.Printf("Token recebido: %s", token)
 
-	conversationID := c.Query("conversation_id")
-	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da conversa é obrigatório"})
+	// Valide o token e obtenha o userID
+	userID, err := utils.ValidateToken(token)
+	if err != nil {
+		log.Printf("Falha na validação do token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
 		return
 	}
+	log.Printf("Usuário autenticado: %s", userID)
 
 	// Atualizar a conexão para WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -142,18 +143,20 @@ func ServeWS(c *gin.Context) {
 		log.Printf("Erro ao atualizar para WebSocket: %v", err)
 		return
 	}
+	log.Println("Conexão WebSocket estabelecida")
 
 	client := &Client{
 		ID:             userID,
 		Conn:           conn,
 		Send:           make(chan []byte, 256),
 		Hub:            WSHub,
-		ConversationID: conversationID,
+		ConversationID: c.Query("conversation_id"),
 	}
 
 	client.Hub.Register <- client
+	log.Printf("Cliente %s registrado no Hub", userID)
 
-	// Iniciar as goroutines para leitura e escrita
+	// Iniciar goroutines
 	go client.readPump()
 	go client.writePump()
 }

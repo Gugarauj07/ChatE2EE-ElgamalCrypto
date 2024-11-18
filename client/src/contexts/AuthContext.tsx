@@ -1,22 +1,23 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
 import { decryptPrivateKey } from '../utils/cryptoUtils';
-import { PrivateKey } from '../utils/elgamal';
+import { PrivateKey, PublicKey } from '../utils/elgamal';
 import { set, get } from 'idb-keyval';
+import { User } from '../types/chat';
 
 interface AuthContextType {
   token: string | null;
   privateKey: PrivateKey | null;
-  user: string | null;
+  user: User | null;
   login: (token: string, encryptedPrivateKey: string, password: string) => Promise<void>;
   logout: () => void;
-  setAuthData: (data: { token: string; privateKey: PrivateKey; user: string }) => Promise<void>;
+  setAuthData: (data: { token: string; privateKey: PrivateKey; user: User }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   token: null,
   privateKey: null,
-   user: null,
+  user: null,
   login: async () => {},
   logout: () => {},
   setAuthData: async () => {},
@@ -25,7 +26,7 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const loadPrivateKey = async () => {
@@ -52,16 +53,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem('token');
       delete api.defaults.headers.Authorization;
       setPrivateKey(null);
+      setUser(null);
     }
   }, [token]);
 
   const loginUser = async (newToken: string, encryptedPrivateKey: string, password: string) => {
     setToken(newToken);
     try {
-      // Descriptografar a chave privada
       const decryptedPrivateKey = await decryptPrivateKey(encryptedPrivateKey, password);
       setPrivateKey(decryptedPrivateKey);
-      // Armazenar a chave privada no IndexedDB
       await set('privateKey', decryptedPrivateKey);
     } catch (err) {
       console.error('Erro ao descriptografar ou armazenar a chave privada:', err);
@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     setToken(null);
     setPrivateKey(null);
+    setUser(null);
     try {
       await set('privateKey', null);
     } catch (err) {
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const setAuthData = async (data: { token: string; privateKey: PrivateKey; user: string }) => {
+  const setAuthData = async (data: { token: string; privateKey: PrivateKey; user: User }) => {
     setToken(data.token);
     setPrivateKey(data.privateKey);
     setUser(data.user);

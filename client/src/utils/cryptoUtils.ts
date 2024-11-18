@@ -1,4 +1,5 @@
 import { PrivateKey } from './elgamal';
+import CryptoJS from 'crypto-js';
 
 /**
  * Criptografa a chave privada usando a senha do usuário.
@@ -128,4 +129,13 @@ const base64ToBuffer = (base64: string): Uint8Array => {
     buffer[i] = char.charCodeAt(0);
   });
   return buffer;
-}; 
+};
+
+export const encryptMessage = (message: string, senderKey: string): string => {
+  return CryptoJS.AES.encrypt(message, senderKey).toString();
+};
+
+export const decryptMessage = (encryptedContent: string, senderKey: string): string => {
+  const bytes = CryptoJS.AES.decrypt(encryptedContent, senderKey);
+  return bytes.toString(CryptoJS.enc.Utf8);
+};

@@ -15,6 +15,7 @@ export interface PrivateKey {
 export interface EncryptedMessage {
   a: string;
   b: string;
+  p: string;
 }
 
 export class ElGamal {
@@ -69,7 +70,7 @@ export class ElGamal {
    *
    * @param message A mensagem a ser criptografada.
    * @param receiverPublicKey A chave pública do receptor.
-   * @returns Um objeto EncryptedMessage contendo 'a' e 'b'.
+   * @returns Um objeto EncryptedMessage contendo 'a', 'b' e 'p'.
    */
   encrypt(message: string, receiverPublicKey: PublicKey): EncryptedMessage {
     const { p, g, y } = receiverPublicKey;
@@ -81,19 +82,23 @@ export class ElGamal {
     const s = this.modularExponentiation(yBig, k, pBig);
     const m = this.stringToBigInt(message);
     const b = (m * s) % pBig;
-    return { a: a.toString(), b: b.toString() };
+
+    return {
+      a: a.toString(),
+      b: b.toString(),
+      p: p
+    };
   }
 
   /**
    * Descriptografa uma mensagem usando a chave privada do receptor.
    *
-   * @param encrypted O objeto EncryptedMessage contendo 'a' e 'b'.
+   * @param encrypted O objeto EncryptedMessage contendo 'a', 'b' e 'p'.
    * @param privateKey A chave privada do receptor.
-   * @param p O módulo primo usado na criptografia.
    * @returns A mensagem descriptografada como string.
    */
-  decrypt(encrypted: EncryptedMessage, privateKey: PrivateKey, p: string): string {
-    const { a, b } = encrypted;
+  decrypt(encrypted: EncryptedMessage, privateKey: PrivateKey): string {
+    const { a, b, p } = encrypted;
     const aBig = BigInt(a);
     const bBig = BigInt(b);
     const pBig = BigInt(p);
@@ -104,8 +109,6 @@ export class ElGamal {
     }
 
     const s = this.modularExponentiation(aBig, xBig, pBig);
-    console.log('Valor de s antes do inverso modular:', s.toString());
-
     if (s === 0n) {
       throw new Error("Decryption error: 's' is zero");
     }

@@ -10,6 +10,7 @@ import ContactsList from '../ContactList';
 import { useContacts } from '../../contexts/ContactContext';
 import useAuth from '../../hooks/useAuth';
 import { Contact } from '@/types/contact';
+import { useConversations } from '../../contexts/ConversationContext';
 
 const Sidebar = () => {
   const { logout } = useAuth();
@@ -17,6 +18,7 @@ const Sidebar = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { contacts, loadContacts } = useContacts();
   const [filteredContacts, setFilteredContacts] = useState(contacts);
+  const { conversations, selectConversation } = useConversations();
 
   useEffect(() => {
     loadContacts();
@@ -31,8 +33,17 @@ const Sidebar = () => {
   }, [searchTerm, contacts]);
 
   const handleStartChat = (contact: Contact) => {
-    // Implementar lógica para iniciar chat
-    console.log('Iniciar chat com:', contact.username);
+    // Implementar lógica para iniciar ou selecionar uma conversa existente
+    const existingConversation = conversations.find(conv => conv.participants.includes(contact.username));
+    if (existingConversation) {
+      selectConversation(existingConversation.id);
+    } else {
+      // Criar uma nova conversa se não existir
+      // Implementar API para criar conversa
+      console.log('Iniciar nova conversa com:', contact.username);
+      // Exemplo:
+      // createConversation([contact.username]).then(newConv => selectConversation(newConv.id));
+    }
   };
 
   return (
@@ -54,14 +65,12 @@ const Sidebar = () => {
         </div>
       </div>
 
-
       <ScrollArea className="flex-1 p-4">
         <ContactsList
           contacts={filteredContacts}
-          onStartChat={handleStartChat}
         />
       </ScrollArea>
-      
+
       <div className="p-4 border-b border-gray-800">
         <div className="space-y-2">
           <ManageContactsModal />
@@ -90,6 +99,6 @@ const Sidebar = () => {
       </div>
     </div>
   );
-};
+}
 
 export default Sidebar;
