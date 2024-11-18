@@ -1,12 +1,14 @@
+// server/middlewares/auth_middleware.go
 package middlewares
 
 import (
 	"net/http"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"server/config"
+
 	"github.com/gin-gonic/gin"
-	"server/services"
+	"github.com/golang-jwt/jwt"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -23,7 +25,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Validar o token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return services.JWTSecret, nil
+			return config.JWTSecret, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -44,4 +46,4 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("user_id", claims["user_id"])
 		c.Next()
 	}
-} 
+}

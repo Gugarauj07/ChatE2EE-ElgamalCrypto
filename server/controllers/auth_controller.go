@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,14 +12,15 @@ import (
 	"server/utils"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // RegisterRequest representa a payload para registro de usuário
 type RegisterRequest struct {
-	Username            string         `json:"username" binding:"required,alphanum"`
-	Password            string         `json:"password" binding:"required"`
-	EncryptedPrivateKey string         `json:"encrypted_private_key" binding:"required"`
-	PublicKey           interface{}    `json:"public_key" binding:"required"`
+	Username            string              `json:"username" binding:"required,alphanum"`
+	Password            string              `json:"password" binding:"required"`
+	EncryptedPrivateKey string              `json:"encrypted_private_key" binding:"required"`
+	PublicKey           models.PublicKeyData `json:"publicKey" binding:"required"`
 }
 
 // RegisterUser lida com o registro de novos usuários
@@ -29,33 +31,34 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// Converter a chave pública para JSON string
-	publicKeyJSON, err := json.Marshal(req.PublicKey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato inválido da chave pública"})
-		return
-	}
-
 	// Verificar se o usuário já existe
 	var existingUser models.User
-	result := config.DB.Where("username = ?", req.Username).First(&existingUser)
-	if result.Error == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Usuário já existe"})
+	if err := config.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário já existe"})
 		return
 	}
 
-	// Hashear a senha utilizando bcrypt
-	hashedPassword, err := services.HashPassword(req.Password)
+	// Imprimir a chave pública antes de fazer o marshal
+	fmt.Println("Chave pública: ", req.PublicKey)
+	// Converter PublicKey para JSON string
+	publicKeyJSON, err := json.Marshal(req.PublicKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar a senha"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar chave pública"})
 		return
 	}
 
-	// Criar o usuário
+	// Hash da senha
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar senha"})
+		return
+	}
+
+	// Criar novo usuário
 	user := models.User{
 		ID:                  utils.GenerateUUID(),
 		Username:            req.Username,
-		PasswordHash:        hashedPassword,
+		PasswordHash:        string(hashedPassword),
 		EncryptedPrivateKey: req.EncryptedPrivateKey,
 		PublicKey:           string(publicKeyJSON),
 		CreatedAt:           time.Now(),
@@ -67,7 +70,7 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// Gerar token JWT para login automático após registro
+	// Gerar token JWT
 	token, err := services.GenerateJWT(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gerar token"})
@@ -75,10 +78,12 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Usuário registrado com sucesso",
 		"token": token,
-		"id": user.ID,
-		"username": user.Username,
+		"user": gin.H{
+			"id":        user.ID,
+			"username":  user.Username,
+			"publicKey": req.PublicKey,
+		},
 	})
 }
 

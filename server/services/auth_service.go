@@ -1,3 +1,4 @@
+// server/services/auth_service.go
 package services
 
 import (
@@ -5,6 +6,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
+	"server/config"
 )
 
 // HashPassword cria um hash a partir de uma senha fornecida
@@ -18,9 +20,6 @@ func CheckPasswordHash(password, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
 
-// JWTSecret é a chave secreta para assinar o token JWT
-var JWTSecret = []byte("sua_chave_secreta_aqui") // Substitua por uma chave segura
-
 // GenerateJWT gera um token JWT para um usuário específico
 func GenerateJWT(userID string) (string, error) {
 	// Definir as declarações/claims
@@ -32,6 +31,6 @@ func GenerateJWT(userID string) (string, error) {
 	// Criar o token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// Assinar o token com a chave secreta
-	return token.SignedString(JWTSecret)
-} 
+	// Assinar o token com a chave secreta do config
+	return token.SignedString(config.JWTSecret)
+}

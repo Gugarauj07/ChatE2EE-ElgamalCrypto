@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           if (!response.data?.id || !response.data?.publicKey) {
             console.error('Dados do usuário incompletos');
-            logout();
+            console.error('Resposta da API:', response.data);
             return;
           }
 
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
         } catch (err) {
           console.error('Erro ao carregar dados do usuário:', err);
-          logout();
+          console.error('Erro completo:', err);
         }
       }
     };
@@ -85,15 +85,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   const loginUser = async (newToken: string, encryptedPrivateKey: string, password: string, userData: User) => {
-    setToken(newToken);
     try {
+      setToken(newToken);
+      localStorage.setItem('token', newToken);
+      api.defaults.headers.Authorization = `Bearer ${newToken}`;
+
       const decryptedPrivateKey = await decryptPrivateKey(encryptedPrivateKey, password);
       setPrivateKey(decryptedPrivateKey);
       await set('privateKey', decryptedPrivateKey);
+
       setUser(userData);
-    } catch (err) {
-      console.error('Erro ao descriptografar ou armazenar a chave privada:', err);
-      throw new Error('Falha na descriptografia da chave privada.');
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      throw error;
     }
   };
 
