@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"server/config"
 	"server/models"
 	"server/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetUserProfile(c *gin.Context) {
@@ -26,7 +27,7 @@ func GetUserProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":         user.ID,
 		"username":   user.Username,
-		"public_key": user.PublicKey,
+		"publicKey": user.PublicKey,
 		"created_at": user.CreatedAt,
 		"last_seen":  user.LastSeen,
 	})

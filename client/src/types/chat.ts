@@ -10,13 +10,19 @@ export interface Message {
   isDelivered: boolean;
 }
 
+export interface EncryptedMessage {
+  a: string;
+  b: string;
+  p: string;
+}
+
 export interface Conversation {
   id: string;
   createdAt: string;
   groupId?: string;
   participants: string[];
   messages: Message[];
-  encryptedKeys: { [userId: string]: string };
+  encryptedKeys: { [userId: string]: EncryptedMessage };
   senderKey?: string;
 }
 

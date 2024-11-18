@@ -1,16 +1,24 @@
+// server/models/conversation.go
+
 package models
 
 import (
 	"time"
 )
 
-// Conversation representa uma conversa entre usuários ou grupos
 type Conversation struct {
-	ID        string    `gorm:"primaryKey"`
-	CreatedAt time.Time
-	GroupID   *string `gorm:"index"` // Nullable para conversas individuais tratadas como grupos com 2 participantes
+	ID            string           `gorm:"primaryKey" json:"id"`
+	CreatedAt     time.Time        `json:"created_at"`
+	GroupID       *string          `json:"group_id,omitempty"`
+	EncryptedKeys EncryptedKeyMap  `gorm:"type:jsonb" json:"encrypted_keys"`
+	Participants  []ConversationParticipant  `json:"participants"`
+	Messages      []Message        `json:"messages"`
+}
 
-	// Relacionamentos
-	Messages      []Message `gorm:"foreignKey:ConversationID"`
-	Participating []User    `gorm:"many2many:conversation_users;"`
+type ConversationParticipant struct {
+	ID             string           `gorm:"primaryKey"`
+	ConversationID string           `gorm:"index;not null"`
+	UserID         string           `gorm:"index;not null"`
+	EncryptedKey   EncryptedMessage `gorm:"type:jsonb" json:"encrypted_key"`
+	JoinedAt       time.Time        `gorm:"not null" json:"joined_at"`
 }

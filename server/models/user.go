@@ -10,7 +10,7 @@ type User struct {
 	Username           string    `gorm:"unique;not null" json:"username"`
 	PasswordHash       string    `json:"-"`
 	EncryptedPrivateKey string   `json:"encrypted_private_key"`
-	PublicKey          string    `json:"public_key"`
+	PublicKey          string    `json:"publicKey"`
 	CreatedAt          time.Time `json:"created_at"`
 	LastSeen           time.Time `json:"last_seen"`
 

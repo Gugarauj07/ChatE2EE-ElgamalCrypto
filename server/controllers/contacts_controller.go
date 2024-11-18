@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"server/config"
 	"server/models"
 	"server/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ListContacts retorna a lista de contatos do usuário
@@ -39,7 +40,7 @@ func ListContacts(c *gin.Context) {
 			"id":         contact.ID,
 			"username":   contact.Contact.Username,
 			"added_at":   contact.AddedAt,
-			"public_key": contact.Contact.PublicKey,
+			"publicKey": contact.Contact.PublicKey,
 		})
 	}
 
@@ -102,7 +103,7 @@ func AddContact(c *gin.Context) {
 		"id":         contact.ID,
 		"username":   contactUser.Username,
 		"added_at":   contact.AddedAt,
-		"public_key": contactUser.PublicKey,
+		"publicKey": contactUser.PublicKey,
 	})
 }
 

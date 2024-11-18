@@ -25,7 +25,7 @@ func InitDatabase() {
 		&models.GroupMember{},
 		&models.Conversation{},
 		&models.Message{},
-		&models.ConversationUser{},
+		&models.ConversationParticipant{},
 	)
 	if err != nil {
 		log.Fatal("Falha ao migrar o banco de dados:", err)

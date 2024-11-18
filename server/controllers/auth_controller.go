@@ -133,8 +133,8 @@ func LoginUser(c *gin.Context) {
 
 // UpdateKeysRequest representa a payload para atualizar as chaves do usuário
 type UpdateKeysRequest struct {
-	EncryptedPrivateKey string        `json:"encrypted_private_key" binding:"required"`
-	PublicKey           models.PublicKeyData `json:"public_key" binding:"required"`
+	EncryptedPrivateKey string              `json:"encrypted_private_key" binding:"required"`
+	PublicKey           models.PublicKeyData `json:"publicKey" binding:"required"` // Alterado para "publicKey"
 }
 
 // UpdateKeys atualiza as chaves do usuário
@@ -156,7 +156,7 @@ func UpdateKeys(c *gin.Context) {
 		Where("id = ?", userID).
 		Updates(map[string]interface{}{
 			"encrypted_private_key": req.EncryptedPrivateKey,
-			"public_key":           req.PublicKey,
+			"publicKey":           req.PublicKey,
 		}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar chaves"})
 		return
@@ -174,7 +174,7 @@ func GetPublicKey(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := config.DB.Select("public_key").First(&user, "id = ?", targetUserID).Error; err != nil {
+	if err := config.DB.Select("publicKey").First(&user, "id = ?", targetUserID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
 		return
 	}
@@ -186,5 +186,5 @@ func GetPublicKey(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"public_key": publicKey})
+	c.JSON(http.StatusOK, gin.H{"publicKey": publicKey})
 }

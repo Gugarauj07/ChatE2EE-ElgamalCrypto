@@ -1,6 +1,6 @@
 // client/src/contexts/ConversationContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Conversation, Message } from '../types/chat';
+import { Conversation, Message, EncryptedMessage } from '../types/chat';
 import { messageService } from '../services/messageService';
 import { showErrorToast } from '../utils/errorHandler';
 import { useContacts } from './ContactContext';
@@ -33,12 +33,19 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const { contacts } = useContacts();
-  const { user, privateKey } = useAuth();
+  const { user, privateKey, isLoading } = useAuth();
   const elGamal = new ElGamal();
 
   const loadConversations = async () => {
+    if (isLoading) return;
+
     try {
       const data = await messageService.getConversations();
+
+      if (!data) {
+        setConversations([]);
+        return;
+      }
 
       if (!user || !privateKey) {
         setConversations(data);
@@ -52,13 +59,12 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
             return convo;
           }
 
-          const [a, b, p] = encryptedKey.split(';');
+          const { a, b, p } = encryptedKey;
           const decryptedSenderKey = elGamal.decrypt(
             { a, b, p },
             privateKey
           );
 
-          // Descriptografar mensagens
           const decryptedMessages = convo.messages.map(msg => ({
             ...msg,
             content: decryptMessage(msg.encryptedContent, decryptedSenderKey)
@@ -74,8 +80,9 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
 
       setConversations(updatedData);
     } catch (error) {
+      console.error('Erro ao carregar conversas:', error);
       showErrorToast('Erro ao carregar conversas.');
-      console.error(error);
+      setConversations([]);
     }
   };
 
@@ -85,6 +92,8 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sendMessage = async (conversationId: string, content: string) => {
+    if (isLoading) return; // Evita enviar mensagens enquanto carrega
+
     try {
       const conversation = conversations.find(conv => conv.id === conversationId);
       if (!conversation?.senderKey) {
@@ -140,27 +149,34 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const generateSenderKey = (): string => {
-    // Implementar lógica para gerar a chave do remetente
-    // Exemplo: gerar uma string aleatória segura
-    return window.crypto.getRandomValues(new Uint8Array(16)).toString();
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    return Array.from(array)
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
   };
 
-  // Função para criptografar a senderKey com a chave pública de cada participante
   const encryptSenderKey = (
     senderKey: string,
     participantsPublicKeys: { [key: string]: PublicKey }
-  ): { [key: string]: string } => {
-    const encryptedKeys: { [key: string]: string } = {};
+  ): { [key: string]: EncryptedMessage } => {
+    const encryptedKeys: { [key: string]: EncryptedMessage } = {};
 
     for (const pid in participantsPublicKeys) {
       const encrypted = elGamal.encrypt(senderKey, participantsPublicKeys[pid]);
-      encryptedKeys[pid] = `${encrypted.a};${encrypted.b};${encrypted.p}`;
+      encryptedKeys[pid] = {
+        a: encrypted.a,
+        b: encrypted.b,
+        p: encrypted.p
+      };
     }
 
     return encryptedKeys;
   };
 
   const startConversation = async (participantUsername: string) => {
+    if (isLoading) return;
+
     try {
       console.log('Dados do usuário:', user);
 
@@ -185,15 +201,33 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
 
       const senderKey = generateSenderKey();
 
+      // Parse das chaves públicas que estão em formato string
+      const userPublicKeyObj = typeof user.publicKey === 'string'
+        ? JSON.parse(user.publicKey)
+        : user.publicKey;
+
+      const participantPublicKeyObj = typeof participant.publicKey === 'string'
+        ? JSON.parse(participant.publicKey)
+        : participant.publicKey;
+
+      // Verificar se as chaves têm o formato correto
+      if (!userPublicKeyObj.p || !userPublicKeyObj.g || !userPublicKeyObj.y) {
+        throw new Error('Formato inválido da chave pública do usuário');
+      }
+
+      if (!participantPublicKeyObj.p || !participantPublicKeyObj.g || !participantPublicKeyObj.y) {
+        throw new Error('Formato inválido da chave pública do participante');
+      }
+
       const participantsPublicKeys: { [key: string]: PublicKey } = {
-        [user.id]: user.publicKey,
-        [participant.id]: participant.publicKey
+        [user.id]: userPublicKeyObj,
+        [participant.id]: participantPublicKeyObj
       };
 
-      const encryptedKeys = encryptSenderKey(senderKey, participantsPublicKeys);
+      const encryptedKeys: { [key: string]: EncryptedMessage } = encryptSenderKey(senderKey, participantsPublicKeys);
 
       const newConversation = await messageService.createConversation({
-        ParticipantIDs: [participant.id],
+        ParticipantIDs: [user.id, participant.id],
         EncryptedKeys: encryptedKeys,
       });
 
@@ -210,7 +244,7 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [isLoading, user, privateKey]);
 
   return (
     <ConversationContext.Provider value={{

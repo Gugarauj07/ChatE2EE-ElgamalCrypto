@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/base64"
 	"net/http"
 	"time"
 
@@ -21,8 +20,8 @@ func ListConversations(c *gin.Context) {
 
 	var conversations []models.Conversation
 	if err := config.DB.
-		Joins("JOIN conversation_users ON conversation_users.conversation_id = conversations.id").
-		Where("conversation_users.user_id = ?", userID).
+		Joins("JOIN conversation_participants ON conversation_participants.conversation_id = conversations.id").
+		Where("conversation_participants.user_id = ?", userID).
 		Find(&conversations).Error; err != nil {
 		c.JSON(http.StatusOK, []gin.H{})
 		return
@@ -31,20 +30,17 @@ func ListConversations(c *gin.Context) {
 	// Para cada conversa, obter a chave criptografada do usuário
 	var response []map[string]interface{}
 	for _, convo := range conversations {
-		var convoUser models.ConversationUser
-		if err := config.DB.Where("conversation_id = ? AND user_id = ?", convo.ID, userID).First(&convoUser).Error; err != nil {
+		var convoParticipant models.ConversationParticipant
+		if err := config.DB.Where("conversation_id = ? AND user_id = ?", convo.ID, userID).First(&convoParticipant).Error; err != nil {
 			continue // Ignorar se não encontrar
 		}
-
-		// Codificar a chave criptografada em base64
-		encryptedKeyStr := base64.StdEncoding.EncodeToString(convoUser.EncryptedKey)
 
 		convoMap := map[string]interface{}{
 			"id":             convo.ID,
 			"created_at":     convo.CreatedAt,
 			"group_id":       convo.GroupID,
-			"encrypted_key":  encryptedKeyStr,
-			"participants":   convo.Participating,
+			"encrypted_key":  convoParticipant.EncryptedKey,
+			"participants":   convo.Participants,
 			"messages_count": len(convo.Messages),
 		}
 
@@ -56,8 +52,8 @@ func ListConversations(c *gin.Context) {
 
 // CreateConversationRequest representa a payload para criar uma conversa
 type CreateConversationRequest struct {
-	ParticipantIDs []string            `json:"ParticipantIDs" binding:"required"`
-	EncryptedKeys  map[string]string  `json:"EncryptedKeys" binding:"required"` // Chave por UserID
+	ParticipantIDs []string           `json:"ParticipantIDs" binding:"required"`
+	EncryptedKeys  models.EncryptedKeyMap `json:"EncryptedKeys" binding:"required"` // Chave por UserID
 }
 
 // CreateConversation cria uma nova conversa recebendo participantes e chaves criptografadas do cliente
@@ -83,10 +79,29 @@ func CreateConversation(c *gin.Context) {
 	// Adicionar o próprio usuário à lista de participantes
 	participantIDs := append(req.ParticipantIDs, userID)
 
+	// Verificar se EncryptedKeys contém todos os participantes
+	for _, pid := range participantIDs {
+		if _, exists := req.EncryptedKeys[pid]; !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada faltando para algum participante"})
+			return
+		}
+	}
+
+	// Validar formato das chaves criptografadas
+	for _, key := range req.EncryptedKeys {
+		if key.A == "" || key.B == "" || key.P == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada inválida para algum participante"})
+			return
+		}
+
+		// Opcional: Adicionar validações adicionais para os campos A, B e P
+	}
+
 	// Criar a conversa
 	conversation := models.Conversation{
-		ID:        utils.GenerateUUID(),
-		CreatedAt: time.Now(),
+		ID:            utils.GenerateUUID(),
+		CreatedAt:     time.Now(),
+		EncryptedKeys: req.EncryptedKeys,
 	}
 
 	if err := config.DB.Create(&conversation).Error; err != nil {
@@ -94,22 +109,11 @@ func CreateConversation(c *gin.Context) {
 		return
 	}
 
-	// Criar ConversationUser para cada participante com as chaves criptografadas enviadas pelo cliente
+	// Criar ConversationParticipant para cada participante com as chaves criptografadas enviadas pelo cliente
 	for _, pid := range participantIDs {
-		encryptedKeyStr, exists := req.EncryptedKeys[pid]
-		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada faltando para algum participante"})
-			return
-		}
+		encryptedKey := req.EncryptedKeys[pid]
 
-		// Decodificar a chave criptografada de base64 para []byte
-		encryptedKey, err := base64.StdEncoding.DecodeString(encryptedKeyStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Chave criptografada inválida para algum participante"})
-			return
-		}
-
-		conversationUser := models.ConversationUser{
+		conversationParticipant := models.ConversationParticipant{
 			ID:             utils.GenerateUUID(),
 			ConversationID: conversation.ID,
 			UserID:         pid,
@@ -117,7 +121,7 @@ func CreateConversation(c *gin.Context) {
 			JoinedAt:       time.Now(),
 		}
 
-		if err := config.DB.Create(&conversationUser).Error; err != nil {
+		if err := config.DB.Create(&conversationParticipant).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao associar participante à conversa"})
 			return
 		}
@@ -143,8 +147,8 @@ func GetMessages(c *gin.Context) {
 	// Verificar se o usuário participa da conversa
 	var conversation models.Conversation
 	if err := config.DB.
-		Joins("JOIN conversations_users ON conversations_users.conversation_id = conversations.id").
-		Where("conversations.id = ? AND conversations_users.user_id = ?", conversationID, userID).
+		Joins("JOIN conversation_participants ON conversation_participants.conversation_id = conversations.id").
+		Where("conversations.id = ? AND conversation_participants.user_id = ?", conversationID, userID).
 		First(&conversation).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversa não encontrada"})
 		return
@@ -188,8 +192,8 @@ func SendMessage(c *gin.Context) {
 	// Verificar se o usuário participa da conversa
 	var conversation models.Conversation
 	if err := config.DB.
-		Joins("JOIN conversation_users ON conversation_users.conversation_id = conversations.id").
-		Where("conversations.id = ? AND conversation_users.user_id = ?", conversationID, userID).
+		Joins("JOIN conversation_participants ON conversation_participants.conversation_id = conversations.id").
+		Where("conversations.id = ? AND conversation_participants.user_id = ?", conversationID, userID).
 		First(&conversation).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversa não encontrada"})
 		return

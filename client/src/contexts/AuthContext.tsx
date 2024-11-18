@@ -9,6 +9,7 @@ interface AuthContextType {
   token: string | null;
   privateKey: PrivateKey | null;
   user: User | null;
+  isLoading: boolean;
   login: (token: string, encryptedPrivateKey: string, password: string, userData: User) => Promise<void>;
   logout: () => void;
   setAuthData: (data: { token: string; privateKey: PrivateKey; user: User }) => Promise<void>;
@@ -18,6 +19,7 @@ export const AuthContext = createContext<AuthContextType>({
   token: null,
   privateKey: null,
   user: null,
+  isLoading: true,
   login: async () => {},
   logout: () => {},
   setAuthData: async () => {},
@@ -27,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -50,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error('Erro completo:', err);
         }
       }
+      setIsLoading(false);
     };
 
     loadUserData();
@@ -67,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error('Erro ao carregar a chave privada do IndexedDB:', err);
         }
       }
+      setIsLoading(false);
     };
 
     loadPrivateKey();
@@ -94,6 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setPrivateKey(decryptedPrivateKey);
       await set('privateKey', decryptedPrivateKey);
 
+      console.log("Usuário definido no AuthContext:", userData);
       setUser(userData);
     } catch (error) {
       console.error('Erro ao fazer login:', error);
@@ -116,11 +122,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(data.token);
     setPrivateKey(data.privateKey);
     setUser(data.user);
-    await set('privateKey', data.privateKey);
   };
 
   return (
-    <AuthContext.Provider value={{ token, privateKey, user, login: loginUser, logout, setAuthData }}>
+    <AuthContext.Provider value={{
+      token,
+      privateKey,
+      user,
+      isLoading,
+      login: loginUser,
+      logout,
+      setAuthData
+    }}>
       {children}
     </AuthContext.Provider>
   );

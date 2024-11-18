@@ -1,11 +1,12 @@
 // client/src/services/messageService.ts
 import api from './api';
 import { Message, Conversation } from '../types/chat';
+import { EncryptedMessage } from '@/utils/elgamal';
 
 // Definir interfaces para os diferentes tipos de requisição
 interface CreateConversationRequest {
   ParticipantIDs: string[];
-  EncryptedKeys: { [key: string]: string }; // Mapa de UserID para EncryptedKey (string)
+  EncryptedKeys: { [key: string]: EncryptedMessage };
 }
 
 export const messageService = {

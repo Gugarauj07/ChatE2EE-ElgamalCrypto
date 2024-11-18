@@ -1,6 +1,6 @@
 // client/src/components/Layout/ChatWindow.tsx
 import { useState, useEffect, FormEvent } from 'react';
-import { Search, MoreVertical, Paperclip, Smile, Send, Check, MessageSquare } from 'lucide-react';
+import { Search, MoreVertical, Paperclip, Smile, Send, Check, MessageSquare, Loader2 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -11,12 +11,12 @@ import { Message } from '../../types/chat';
 
 const ChatWindow = () => {
   const { selectedConversation, sendMessage } = useConversations();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [messageContent, setMessageContent] = useState('');
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!messageContent.trim() || !selectedConversation || !user) return;
+    if (!messageContent.trim() || !selectedConversation || !user || isLoading) return;
 
     try {
       await sendMessage(selectedConversation.id, messageContent);
@@ -25,6 +25,19 @@ const ChatWindow = () => {
       console.error('Erro ao enviar mensagem:', error);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Carregando...
+          </h3>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedConversation) {
     return (
@@ -96,28 +109,19 @@ const ChatWindow = () => {
         </div>
       </div>
 
-      <footer className="p-4 border-t border-gray-300 dark:border-gray-700">
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="icon">
-            <Paperclip className="h-5 w-5 text-gray-500" />
-          </Button>
-          <div className="flex-1 relative">
-            <Input
-              type="text"
-              placeholder="Digite sua mensagem..."
-              value={messageContent}
-              onChange={(e) => setMessageContent(e.target.value)}
-              className="pr-10 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-            />
-            <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2">
-              <Smile className="h-5 w-5 text-gray-500" />
-            </Button>
-          </div>
-          <Button type="submit" size="icon" className="rounded-full">
-            <Send className="h-5 w-5" />
-          </Button>
-        </form>
-      </footer>
+      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-300 dark:border-gray-700 flex items-center gap-2">
+        <Input
+          type="text"
+          placeholder="Digite uma mensagem..."
+          value={messageContent}
+          onChange={(e) => setMessageContent(e.target.value)}
+          required
+          className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <Button type="submit" className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <Send className="h-5 w-5" />
+        </Button>
+      </form>
     </div>
   );
 };

@@ -72,22 +72,32 @@ export class ElGamal {
    * @param receiverPublicKey A chave pública do receptor.
    * @returns Um objeto EncryptedMessage contendo 'a', 'b' e 'p'.
    */
-  encrypt(message: string, receiverPublicKey: PublicKey): EncryptedMessage {
-    const { p, g, y } = receiverPublicKey;
-    const pBig = BigInt(p);
-    const gBig = BigInt(g);
-    const yBig = BigInt(y);
-    const k = this.generateSecureRandomBigInt(2n, pBig - 2n);
-    const a = this.modularExponentiation(gBig, k, pBig);
-    const s = this.modularExponentiation(yBig, k, pBig);
-    const m = this.stringToBigInt(message);
-    const b = (m * s) % pBig;
+  encrypt(message: string, publicKey: PublicKey): EncryptedMessage {
+    try {
+      if (!publicKey.p || !publicKey.g || !publicKey.y) {
+        throw new Error('Chave pública inválida: faltam propriedades necessárias');
+      }
 
-    return {
-      a: a.toString(),
-      b: b.toString(),
-      p: p
-    };
+      // Converter strings para BigInt
+      const p = BigInt(publicKey.p);
+      const g = BigInt(publicKey.g);
+      const y = BigInt(publicKey.y);
+
+      const k = this.generateSecureRandomBigInt(2n, p - 2n);
+      const a = this.modularExponentiation(g, k, p);
+      const s = this.modularExponentiation(y, k, p);
+      const m = this.stringToBigInt(message);
+      const b = (m * s) % p;
+
+      return {
+        a: a.toString(),
+        b: b.toString(),
+        p: p.toString()
+      };
+    } catch (error) {
+      console.error('Erro na criptografia ElGamal:', error);
+      throw error;
+    }
   }
 
   /**
