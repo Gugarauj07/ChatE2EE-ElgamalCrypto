@@ -20,6 +20,14 @@ interface ConversationContextType {
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
 
+export const useConversations = () => {
+  const context = useContext(ConversationContext);
+  if (!context) {
+    throw new Error('useConversations must be used within a ConversationProvider');
+  }
+  return context;
+};
+
 export const ConversationProvider = ({ children }: { children: ReactNode }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -150,13 +158,13 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
 
   const startConversation = async (participantUsername: string) => {
     try {
-      if (!user) {
-        throw new Error('Usuário não autenticado');
+      if (!user?.id || !user?.publicKey) {
+        throw new Error('Usuário não autenticado ou dados incompletos');
       }
 
       const participant = contacts.find(contact => contact.username === participantUsername);
-      if (!participant) {
-        throw new Error('Participante não encontrado');
+      if (!participant?.id || !participant?.public_key) {
+        throw new Error('Participante não encontrado ou dados incompletos');
       }
 
       const senderKey = generateSenderKey();
@@ -165,19 +173,22 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
         [user.id]: user.publicKey,
         [participant.id]: participant.public_key
       };
-      // Criptografar a senderKey para cada participante
+
       const encryptedKeys = encryptSenderKey(senderKey, participantsPublicKeys);
 
       const newConversation = await messageService.createConversation({
         ParticipantIDs: [participant.id],
-        EncryptedKeys: encryptedKeys, // Mapa de UserID para string base64
+        EncryptedKeys: encryptedKeys,
       });
 
-      setConversations(prev => [...prev, { ...newConversation, senderKey }]);
-      setSelectedConversation({ ...newConversation, senderKey });
+      const conversationWithKey = { ...newConversation, senderKey };
+
+      setConversations(prev => [...prev, conversationWithKey]);
+      setSelectedConversation(conversationWithKey);
     } catch (error) {
       showErrorToast('Erro ao iniciar conversa.');
       console.error('Erro ao iniciar conversa:', error);
+      throw error; // Propagar o erro para tratamento no componente
     }
   };
 
@@ -198,12 +209,4 @@ export const ConversationProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </ConversationContext.Provider>
   );
-};
-
-export const useConversations = () => {
-  const context = useContext(ConversationContext);
-  if (context === undefined) {
-    throw new Error('useConversations deve ser usado dentro de um ConversationProvider');
-  }
-  return context;
 };

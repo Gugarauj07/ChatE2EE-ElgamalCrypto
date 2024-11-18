@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"server/utils"
+	"server/models"
 )
 
 // Message representa uma mensagem transmitida via WebSocket
@@ -77,13 +79,73 @@ func (c *Client) readPump() {
 		c.Hub.Unregister <- c
 		c.Conn.Close()
 	}()
+
+	// Esperar pela mensagem de autenticação
+	_, message, err := c.Conn.ReadMessage()
+	if err != nil {
+		log.Printf("Erro ao ler mensagem de autenticação: %v", err)
+		return
+	}
+
+	var wsMsg models.WSMessage
+	if err := json.Unmarshal(message, &wsMsg); err != nil {
+		log.Printf("Erro ao deserializar mensagem: %v", err)
+		c.Conn.WriteMessage(websocket.CloseMessage, []byte("Mensagem inválida"))
+		return
+	}
+
+	if wsMsg.Type != "auth" {
+		log.Println("Primeira mensagem deve ser de autenticação")
+		c.Conn.WriteMessage(websocket.CloseMessage, []byte("Autenticação requerida"))
+		return
+	}
+
+	var authMsg models.AuthMessage
+	if err := json.Unmarshal(wsMsg.Payload, &authMsg); err != nil {
+		log.Printf("Erro ao deserializar mensagem de autenticação: %v", err)
+		c.Conn.WriteMessage(websocket.CloseMessage, []byte("Formato de autenticação inválido"))
+		return
+	}
+
+	userID, err := utils.ValidateToken(authMsg.Token)
+	if err != nil {
+		log.Printf("Falha na validação do token: %v", err)
+		c.Conn.WriteMessage(websocket.CloseMessage, []byte("Token inválido"))
+		return
+	}
+
+	c.ID = userID
+	c.Hub.Register <- c
+	log.Printf("Cliente %s registrado no Hub", userID)
+
+	// Agora, continuar a escutar mensagens normalmente
 	for {
-		var msg Message
-		err := c.Conn.ReadJSON(&msg)
+		_, msg, err := c.Conn.ReadMessage()
 		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Erro inesperado: %v", err)
+			}
 			break
 		}
-		c.Hub.Broadcast <- msg
+		// Processar a mensagem recebida
+		var incomingMsg models.WSMessage
+		if err := json.Unmarshal(msg, &incomingMsg); err != nil {
+			log.Printf("Erro ao deserializar mensagem: %v", err)
+			continue
+		}
+
+		switch incomingMsg.Type {
+		case "message":
+			var msgPayload Message
+			if err := json.Unmarshal(incomingMsg.Payload, &msgPayload); err != nil {
+				log.Printf("Erro ao deserializar payload de mensagem: %v", err)
+				continue
+			}
+			c.Hub.Broadcast <- msgPayload
+		// Adicione outros tipos de mensagens conforme necessário
+		default:
+			log.Printf("Tipo de mensagem desconhecido: %s", incomingMsg.Type)
+		}
 	}
 }
 
@@ -109,10 +171,11 @@ func (c *Client) writePump() {
 	}
 }
 
-// Defina o upgrader com a função CheckOrigin adequada
+// Defina o upgrader com as configurações necessárias
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// Configure CheckOrigin conforme necessário
 	CheckOrigin: func(r *http.Request) bool {
 		// Permitir todas as origens para desenvolvimento (não recomendado para produção)
 		return true
@@ -122,20 +185,9 @@ var upgrader = websocket.Upgrader{
 // Instância global do Hub
 var WSHub = NovoHub()
 
-// ServeWS atualiza a conexão HTTP para WebSocket
+// ServeWS atualiza a conexão HTTP para WebSocket e autentica o cliente
 func ServeWS(c *gin.Context) {
 	log.Println("Tentando estabelecer conexão WebSocket")
-	token := c.Query("token")
-	log.Printf("Token recebido: %s", token)
-
-	// Valide o token e obtenha o userID
-	userID, err := utils.ValidateToken(token)
-	if err != nil {
-		log.Printf("Falha na validação do token: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
-		return
-	}
-	log.Printf("Usuário autenticado: %s", userID)
 
 	// Atualizar a conexão para WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -145,18 +197,14 @@ func ServeWS(c *gin.Context) {
 	}
 	log.Println("Conexão WebSocket estabelecida")
 
+	// Inicializar o cliente sem ID até a autenticação
 	client := &Client{
-		ID:             userID,
-		Conn:           conn,
-		Send:           make(chan []byte, 256),
-		Hub:            WSHub,
-		ConversationID: c.Query("conversation_id"),
+		Conn: conn,
+		Send: make(chan []byte, 256),
+		Hub:  WSHub,
 	}
 
-	client.Hub.Register <- client
-	log.Printf("Cliente %s registrado no Hub", userID)
-
 	// Iniciar goroutines
-	go client.readPump()
 	go client.writePump()
+	go client.readPump()
 }

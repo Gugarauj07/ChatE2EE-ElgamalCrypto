@@ -7,6 +7,7 @@ import (
 )
 
 func ProtectedRoutes(router *gin.Engine) {
+	router.GET("/api/ws", controllers.ServeWS)
 	protected := router.Group("/api")
 	protected.Use(middlewares.AuthMiddleware())
 	{
@@ -41,8 +42,5 @@ func ProtectedRoutes(router *gin.Engine) {
 			conversations.GET("/:id/messages", controllers.GetMessages)
 			conversations.POST("/:id/messages", controllers.SendMessage)
 		}
-
-		// Rota para WebSocket
-		protected.GET("/ws", controllers.ServeWS)
 	}
 }

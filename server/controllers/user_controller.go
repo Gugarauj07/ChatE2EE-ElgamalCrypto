@@ -24,10 +24,11 @@ func GetUserProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id": user.ID,
-		"username": user.Username,
+		"id":         user.ID,
+		"username":   user.Username,
+		"public_key": user.PublicKey,
 		"created_at": user.CreatedAt,
-		"last_seen": user.LastSeen,
+		"last_seen":  user.LastSeen,
 	})
 }
 
@@ -73,4 +74,4 @@ func UpdateUserProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Perfil atualizado com sucesso"})
-} 
+}

@@ -1,6 +1,7 @@
 import useAuth from '@/hooks/useAuth';
 import { useEffect } from 'react';
 import { useConversations } from '../contexts/ConversationContext';
+import { WSMessage } from '@/types/websocket';
 
 export const useWebSocket = () => {
   const { receiveMessage } = useConversations();
@@ -9,17 +10,31 @@ export const useWebSocket = () => {
   useEffect(() => {
     if (!token) return;
 
-    const socket = new WebSocket(`ws://localhost:8080/api/ws?token=${token}`);
+    const socket = new WebSocket('ws://localhost:8080/api/ws');
 
     socket.onopen = () => {
       console.log('Conectado ao WebSocket');
+      const authMessage: WSMessage = {
+        type: 'auth',
+        payload: {
+          token: token,
+        },
+      };
+      socket.send(JSON.stringify(authMessage));
     };
 
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        const { conversationId, message } = data;
-        receiveMessage(conversationId, message);
+        const data: WSMessage = JSON.parse(event.data);
+        switch (data.type) {
+          case 'message':
+            const { conversationId, message } = data.payload;
+            receiveMessage(conversationId, message);
+            break;
+          // Adicione outros tipos de mensagens conforme necessário
+          default:
+            console.warn('Tipo de mensagem desconhecido:', data.type);
+        }
       } catch (error) {
         console.error('Erro ao processar mensagem recebida:', error);
       }

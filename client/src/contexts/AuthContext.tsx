@@ -29,6 +29,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    const loadUserData = async () => {
+      if (token) {
+        try {
+          const response = await api.get('/api/user/profile');
+          setUser(response.data);
+        } catch (err) {
+          console.error('Erro ao carregar dados do usuário:', err);
+          logout(); // Fazer logout se não conseguir carregar os dados do usuário
+        }
+      }
+    };
+
+    loadUserData();
+  }, [token]);
+
+  useEffect(() => {
     const loadPrivateKey = async () => {
       if (token) {
         try {
