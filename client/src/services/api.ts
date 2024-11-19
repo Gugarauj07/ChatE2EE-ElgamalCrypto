@@ -16,10 +16,7 @@ export const getUsers = async (): Promise<string[]> => {
 
 export const sendMessage = async (encryptedMessage: EncryptedMessage, senderId: string, receiverId: string) => {
   const response = await api.post('/send-message', {
-    encryptedMessage: {
-      a: encryptedMessage.a.toString(),
-      b: encryptedMessage.b.toString()
-    },
+    encryptedMessage,
     senderId,
     receiverId
   });

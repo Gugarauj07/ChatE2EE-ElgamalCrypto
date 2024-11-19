@@ -23,17 +23,15 @@ const userTimeout = 5 * time.Minute
 
 // SendMessageRequest representa a estrutura de requisição para enviar uma mensagem
 type SendMessageRequest struct {
-	EncryptedMessage struct {
-		A string `json:"a"`
-		B string `json:"b"`
-	} `json:"encryptedMessage"`
-	SenderId   string `json:"senderId"`
-	ReceiverId string `json:"receiverId"`
+	EncryptedMessage map[string]models.EncryptedMessage `json:"encryptedMessage"`
+	SenderId         string                             `json:"senderId"`
+	ReceiverId       string                             `json:"receiverId"`
 }
 
 // ReceiveMessagesRequest representa a estrutura de requisição para receber mensagens
 type ReceiveMessagesRequest struct {
-	UserId string `json:"userId"`
+	UserId      string `json:"userId"`
+	OtherUserId string `json:"otherUserId"`
 }
 
 // Connect godoc
@@ -148,14 +146,12 @@ func SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	message := models.ChatMessage{
-		SenderId:  req.SenderId,
-		EncryptedContent: models.EncryptedMessage{
-			A: req.EncryptedMessage.A,
-			B: req.EncryptedMessage.B,
-		},
-		Timestamp: time.Now(),
-		IsRead:    false,
+		SenderId:         req.SenderId,
+		EncryptedContent: req.EncryptedMessage,
+		Timestamp:        time.Now(),
+		IsRead:           false,
 	}
 
 	chatHistoryMutex.Lock()
@@ -168,7 +164,11 @@ func SendMessage(c *gin.Context) {
 		chatHistory[chatID] = make(map[string][]models.ChatMessage)
 	}
 
+	// Adiciona a mensagem para o destinatário
 	chatHistory[chatID][req.ReceiverId] = append(chatHistory[chatID][req.ReceiverId], message)
+
+	// Adiciona a mensagem para o remetente para que ele possa descriptografar sua própria mensagem
+	chatHistory[chatID][req.SenderId] = append(chatHistory[chatID][req.SenderId], message)
 
 	c.Status(http.StatusOK)
 }
@@ -186,15 +186,12 @@ func getChatID(user1, user2 string) string {
 // @Tags messages
 // @Accept json
 // @Produce json
-// @Param request body ReceiveMessagesRequest true "ID do usuário"
+// @Param request body ReceiveMessagesRequest true "ID do usuário e ID do outro usuário"
 // @Success 200 {array} models.ChatMessage
 // @Failure 400 {object} map[string]string
 // @Router /receive-messages [post]
 func ReceiveMessages(c *gin.Context) {
-	var req struct {
-		UserId      string `json:"userId"`
-		OtherUserId string `json:"otherUserId"`
-	}
+	var req ReceiveMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -207,8 +204,12 @@ func ReceiveMessages(c *gin.Context) {
 
 	var allMessages []models.ChatMessage
 	if chat, exists := chatHistory[chatID]; exists {
-		allMessages = append(allMessages, chat[req.UserId]...)
-		allMessages = append(allMessages, chat[req.OtherUserId]...)
+		if msgs, ok := chat[req.UserId]; ok {
+			allMessages = append(allMessages, msgs...)
+		}
+		if msgs, ok := chat[req.OtherUserId]; ok {
+			allMessages = append(allMessages, msgs...)
+		}
 	}
 
 	// Ordena as mensagens por timestamp

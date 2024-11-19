@@ -16,8 +16,10 @@ export interface KeyPair {
 }
 
 export interface EncryptedMessage {
-  a: string;
-  b: string;
+  [userId: string]: {
+    a: string;
+    b: string;
+  };
 }
 
 export interface ChatMessage {
@@ -30,7 +32,7 @@ export interface ChatMessage {
 
 export interface ReceivedMessage {
   senderId: string;
-  encryptedMessage: EncryptedMessage;
+  encryptedContent: EncryptedMessage;
 }
 
 export interface EncryptionLogEntry {

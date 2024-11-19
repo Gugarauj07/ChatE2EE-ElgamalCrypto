@@ -32,11 +32,11 @@ const Chat: React.FC = () => {
       if (encryptedMessages.length > 0) {
         const decryptedMessages = encryptedMessages.map((msg) => {
           try {
-            console.log('Mensagem criptografada:', msg.encryptedContent);
-            console.log('Chave privada:', privateKey);
-            console.log('Módulo p:', publicKey.p);
-            const decryptedContent = elGamal.decrypt(msg.encryptedContent, privateKey, publicKey.p);
-            console.log('Conteúdo descriptografado:', decryptedContent);
+            const encryptedContent = msg.encryptedContent[userId] || msg.encryptedContent[selectedUser!];
+            if (!encryptedContent) {
+              throw new Error('Mensagem não contém criptografia para este usuário.');
+            }
+            const decryptedContent = elGamal.decrypt(encryptedContent, privateKey, publicKey.p);
             return {
               ...msg,
               content: decryptedContent,
@@ -98,8 +98,23 @@ const Chat: React.FC = () => {
     if (!message.trim() || !receiverPublicKey) return;
 
     try {
-      const encrypted: EncryptedMessage = elGamal.encrypt(message, receiverPublicKey);
-      await sendMessage(encrypted, userId, selectedUser);
+      // Criptografa para o destinatário
+      const encryptedToReceiver: EncryptedMessage = {
+        [selectedUser!]: elGamal.encrypt(message, receiverPublicKey)
+      };
+
+      // Criptografa para o remetente usando sua própria chave pública
+      const encryptedToSender: EncryptedMessage = {
+        [userId]: elGamal.encrypt(message, publicKey)
+      };
+
+      // Combina ambos os objetos em um único mapa
+      const combinedEncryptedMessage: EncryptedMessage = {
+        ...encryptedToReceiver,
+        ...encryptedToSender
+      };
+
+      await sendMessage(combinedEncryptedMessage, userId, selectedUser!);
       setMessage('');
       await fetchAndDecryptMessages();
     } catch (error) {

@@ -10,10 +10,10 @@ type EncryptedMessage struct {
 }
 
 type ChatMessage struct {
-	SenderId         string           `json:"senderId"`
-	EncryptedContent EncryptedMessage `json:"encryptedContent"`
-	Timestamp        time.Time        `json:"timestamp"`
-	IsRead           bool             `json:"isRead"`
+	SenderId         string                            `json:"senderId"`
+	EncryptedContent map[string]EncryptedMessage       `json:"encryptedContent"`
+	Timestamp        time.Time                         `json:"timestamp"`
+	IsRead           bool                              `json:"isRead"`
 }
 
 type PublicKey struct {
