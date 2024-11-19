@@ -1,22 +1,19 @@
 package api
 
 import (
-	"bytes"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"server/models"
 	"sort"
 	"sync"
 	"time"
 	"strings"
+
 	"github.com/gin-gonic/gin"
 )
 
 var users = make(map[string]models.User)
-var messages = make(map[string][]models.ChatMessage)
+var chatHistory = make(map[string][]models.ChatMessage)
 var usersMutex = &sync.Mutex{}
-var chatHistory = make(map[string]map[string][]models.ChatMessage)
 var chatHistoryMutex = &sync.RWMutex{}
 
 const userTimeout = 5 * time.Minute
@@ -32,102 +29,6 @@ type SendMessageRequest struct {
 type ReceiveMessagesRequest struct {
 	UserId      string `json:"userId"`
 	OtherUserId string `json:"otherUserId"`
-}
-
-// Connect godoc
-// @Summary Conecta um usuário ao servidor
-// @Description Registra um novo usuário com seu ID e chave pública
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param user body models.User true "Informações do usuário"
-// @Success 200
-// @Failure 400 {object} map[string]string
-// @Router /connect [post]
-func Connect(c *gin.Context) {
-	body, _ := ioutil.ReadAll(c.Request.Body)
-	log.Printf("Raw request body: %s", string(body))
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
-		log.Printf("Error binding JSON: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	log.Printf("Parsed user data: UserId='%s', PublicKey={P:%s, G:%s, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
-
-	if user.UserId == "" || user.PublicKey.P == "" || user.PublicKey.G == "" || user.PublicKey.Y == "" {
-		log.Printf("Invalid user data: UserId='%s', PublicKey={P:%s, G:%s, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
-		return
-	}
-
-	if _, exists := users[user.UserId]; exists {
-		log.Printf("User ID already exists: %s", user.UserId)
-		c.JSON(http.StatusConflict, gin.H{"error": "User ID already exists"})
-		return
-	}
-
-	user.LastActivity = time.Now()
-	usersMutex.Lock()
-	users[user.UserId] = user
-	usersMutex.Unlock()
-
-	log.Printf("User connected successfully: UserId='%s', PublicKey={P:%s, G:%s, Y:%s}", user.UserId, user.PublicKey.P, user.PublicKey.G, user.PublicKey.Y)
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User connected successfully",
-		"userId":  user.UserId,
-	})
-}
-
-// GetUsers godoc
-// @Summary Lista todos os usuários
-// @Description Retorna uma lista de IDs de todos os usuários conectados
-// @Tags users
-// @Produce json
-// @Success 200 {array} string
-// @Router /users [get]
-func GetUsers(c *gin.Context) {
-	usersMutex.Lock()
-	defer usersMutex.Unlock()
-
-	userIDs := make([]string, 0, len(users))
-	for id, user := range users {
-		if time.Since(user.LastActivity) < userTimeout {
-			userIDs = append(userIDs, id)
-		} else {
-			delete(users, id)
-			delete(messages, id)
-		}
-	}
-	c.JSON(http.StatusOK, userIDs)
-}
-
-// GetPublicKey godoc
-// @Summary Obtém a chave pública de um usuário
-// @Description Retorna a chave pública de um usuário específico
-// @Tags users
-// @Produce json
-// @Param userId path string true "ID do usuário"
-// @Success 200 {string} string
-// @Failure 404 {object} map[string]string
-// @Router /public-key/{userId} [get]
-func GetPublicKey(c *gin.Context) {
-	userID := c.Param("userId")
-	usersMutex.Lock()
-	user, exists := users[userID]
-	if !exists {
-		usersMutex.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	user.LastActivity = time.Now()
-	users[userID] = user
-	usersMutex.Unlock()
-	c.JSON(http.StatusOK, user.PublicKey)
 }
 
 // SendMessage godoc
@@ -161,14 +62,11 @@ func SendMessage(c *gin.Context) {
 	chatID := getChatID(req.SenderId, req.ReceiverId)
 
 	if _, exists := chatHistory[chatID]; !exists {
-		chatHistory[chatID] = make(map[string][]models.ChatMessage)
+		chatHistory[chatID] = []models.ChatMessage{}
 	}
 
-	// Adiciona a mensagem para o destinatário
-	chatHistory[chatID][req.ReceiverId] = append(chatHistory[chatID][req.ReceiverId], message)
-
-	// Adiciona a mensagem para o remetente para que ele possa descriptografar sua própria mensagem
-	chatHistory[chatID][req.SenderId] = append(chatHistory[chatID][req.SenderId], message)
+	// Adiciona a mensagem ao histórico do chat
+	chatHistory[chatID] = append(chatHistory[chatID], message)
 
 	c.Status(http.StatusOK)
 }
@@ -203,13 +101,8 @@ func ReceiveMessages(c *gin.Context) {
 	chatID := getChatID(req.UserId, req.OtherUserId)
 
 	var allMessages []models.ChatMessage
-	if chat, exists := chatHistory[chatID]; exists {
-		if msgs, ok := chat[req.UserId]; ok {
-			allMessages = append(allMessages, msgs...)
-		}
-		if msgs, ok := chat[req.OtherUserId]; ok {
-			allMessages = append(allMessages, msgs...)
-		}
+	if msgs, exists := chatHistory[chatID]; exists {
+		allMessages = append(allMessages, msgs...)
 	}
 
 	// Ordena as mensagens por timestamp
@@ -218,6 +111,37 @@ func ReceiveMessages(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusOK, allMessages)
+}
+
+// Connect godoc
+// @Summary Conecta um usuário ao servidor
+// @Description Registra um novo usuário com seu ID e chave pública
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body models.User true "Informações do usuário"
+// @Success 200
+// @Failure 400 {object} map[string]string
+// @Router /connect [post]
+func Connect(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
+	if _, exists := users[user.UserId]; exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário já existe"})
+		return
+	}
+
+	user.LastActivity = time.Now()
+	users[user.UserId] = user
+
+	c.Status(http.StatusOK)
 }
 
 // Disconnect godoc
@@ -244,41 +168,79 @@ func Disconnect(c *gin.Context) {
 	defer usersMutex.Unlock()
 
 	if _, exists := users[req.UserId]; !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
 		return
 	}
 
 	delete(users, req.UserId)
-	delete(messages, req.UserId)
 
 	// Remover o histórico de chat do usuário
 	chatHistoryMutex.Lock()
 	defer chatHistoryMutex.Unlock()
-
-	for chatID, chat := range chatHistory {
-		if strings.Contains(chatID, req.UserId) {
+	for chatID, _ := range chatHistory {
+		if strings.Contains(chatID, req.UserId+"_") || strings.Contains(chatID, "_"+req.UserId) {
 			delete(chatHistory, chatID)
-		} else {
-			for userID := range chat {
-				if userID == req.UserId {
-					delete(chat, userID)
-				}
-			}
-			if len(chat) == 0 {
-				delete(chatHistory, chatID)
-			}
 		}
 	}
 
-	log.Printf("User disconnected and chat history removed: UserId='%s'", req.UserId)
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User disconnected and chat history removed successfully",
-		"userId":  req.UserId,
-	})
+	c.Status(http.StatusOK)
 }
 
-// Nova função para o heartbeat
+// GetPublicKey godoc
+// @Summary Obtém a chave pública de um usuário
+// @Description Retorna a chave pública de um usuário específico
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param userId path string true "ID do usuário"
+// @Success 200 {object} models.PublicKey
+// @Failure 404 {object} map[string]string
+// @Router /public-key/{userId} [get]
+func GetPublicKey(c *gin.Context) {
+	userId := c.Param("userId")
+
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
+	user, exists := users[userId]
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user.PublicKey)
+}
+
+// GetUsers godoc
+// @Summary Lista todos os usuários
+// @Description Retorna uma lista de IDs de todos os usuários conectados
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Router /users [get]
+func GetUsers(c *gin.Context) {
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
+	var userIds []string
+	for userId := range users {
+		userIds = append(userIds, userId)
+	}
+
+	c.JSON(http.StatusOK, userIds)
+}
+
+// Heartbeat godoc
+// @Summary Envia um heartbeat para manter o usuário conectado
+// @Description Atualiza a última atividade do usuário
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param userId body string true "ID do usuário"
+// @Success 200
+// @Failure 400 {object} map[string]string
+// @Router /heartbeat [post]
 func Heartbeat(c *gin.Context) {
 	var req struct {
 		UserId string `json:"userId"`
@@ -289,13 +251,16 @@ func Heartbeat(c *gin.Context) {
 	}
 
 	usersMutex.Lock()
-	if user, exists := users[req.UserId]; exists {
-		user.LastActivity = time.Now()
-		users[req.UserId] = user
-		usersMutex.Unlock()
-		c.JSON(http.StatusOK, gin.H{"message": "Heartbeat received"})
-	} else {
-		usersMutex.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	defer usersMutex.Unlock()
+
+	user, exists := users[req.UserId]
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário não encontrado"})
+		return
 	}
+
+	user.LastActivity = time.Now()
+	users[req.UserId] = user
+
+	c.Status(http.StatusOK)
 }
