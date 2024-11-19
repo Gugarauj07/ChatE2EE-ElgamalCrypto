@@ -9,53 +9,43 @@ O **Chat E2EE** é uma aplicação de mensagens com criptografia de ponta a pont
 ### Diagrama de Entidade Relacionamento
 ```mermaid
 erDiagram
-    USERS ||--o{ CONVERSATIONS : participates
-    USERS ||--o{ GROUP_MEMBERS : belongs
     USERS ||--o{ CONTACTS : has
-    CONVERSATIONS ||--o{ MESSAGES : contains
-    CONVERSATIONS ||--o{ GROUPS : belongs
-    GROUPS ||--o{ GROUP_MEMBERS : has
-    GROUPS ||--o{ MESSAGES : contain
+    USERS ||--o{ CONVERSATION_PARTICIPANTS : participates
+    CONVERSATIONS ||--o{ CONVERSATION_PARTICIPANTS : contains
+    CONVERSATIONS ||--o{ MESSAGES : has
     USERS {
         string id PK
         string username
         string password_hash
-        blob encrypted_private_key
-        blob public_key
+        string encrypted_private_key
+        string public_key
         timestamp created_at
         timestamp last_seen
     }
     CONTACTS {
+        string id PK
         string user_id FK
         string contact_id FK
-        string nickname
         timestamp added_at
     }
     CONVERSATIONS {
         string id PK
-        string type
         timestamp created_at
-        string group_id FK "null para individual"
+        jsonb encrypted_keys
+    }
+    CONVERSATION_PARTICIPANTS {
+        string id PK
+        string conversation_id FK
+        string user_id FK
+        timestamp joined_at
     }
     MESSAGES {
         string id PK
         string conversation_id FK
         string sender_id FK
-        blob encrypted_content
+        jsonb encrypted_content
         timestamp created_at
         boolean is_delivered
-    }
-    GROUPS {
-        string id PK
-        string name
-        blob sender_key
-        string admin_id FK
-        timestamp created_at
-    }
-    GROUP_MEMBERS {
-        string group_id FK
-        string user_id FK
-        timestamp joined_at
     }
 ```
 
