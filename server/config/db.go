@@ -22,10 +22,10 @@ func InitDatabase() {
 		&models.User{},
 		&models.Contact{},
 		&models.Group{},
-		&models.GroupMember{},
 		&models.Conversation{},
 		&models.Message{},
 		&models.ConversationParticipant{},
+		&models.MessageRecipient{},
 	)
 	if err != nil {
 		log.Fatal("Falha ao migrar o banco de dados:", err)

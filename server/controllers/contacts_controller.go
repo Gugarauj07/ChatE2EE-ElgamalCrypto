@@ -49,7 +49,7 @@ func ListContacts(c *gin.Context) {
 
 // AddContactRequest representa a payload para adicionar um contato
 type AddContactRequest struct {
-	ContactUsername string `json:"contact_username" binding:"required,alphanum"`
+	ContactID string `json:"contact_id" binding:"required"`
 }
 
 // AddContact adiciona um novo contato ao usuário
@@ -66,45 +66,76 @@ func AddContact(c *gin.Context) {
 		return
 	}
 
-	// Buscar o usuário pelo username fornecido
-	var contactUser models.User
-	if err := config.DB.Where("username = ?", req.ContactUsername).First(&contactUser).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
-		return
-	}
-
-	// Verificar se o usuário está tentando adicionar a si mesmo
-	if contactUser.ID == userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Você não pode adicionar a si mesmo como contato"})
-		return
-	}
-
-	// Verificar se já é contato
+	// Verificar se o contato já existe
 	var existingContact models.Contact
-	if err := config.DB.Where("user_id = ? AND contact_id = ?", userID, contactUser.ID).First(&existingContact).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Contato já existe"})
+	if err := config.DB.Where("user_id = ? AND contact_id = ?", userID, req.ContactID).First(&existingContact).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Contato já existe"})
 		return
 	}
 
-	// Adicionar o contato
+	// Iniciar transação
+	tx := config.DB.Begin()
+
+	// Adicionar contato
 	contact := models.Contact{
 		ID:        utils.GenerateUUID(),
 		UserID:    userID,
-		ContactID: contactUser.ID,
+		ContactID: req.ContactID,
 		AddedAt:   time.Now(),
 	}
-
-	if err := config.DB.Create(&contact).Error; err != nil {
+	if err := tx.Create(&contact).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao adicionar contato"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":         contact.ID,
-		"username":   contactUser.Username,
-		"added_at":   contact.AddedAt,
-		"publicKey": contactUser.PublicKey,
-	})
+	// Criar conversa direta
+	conversation := models.Conversation{
+		ID:        utils.GenerateUUID(),
+		Type:      "DIRECT",
+		CreatedAt: time.Now(),
+	}
+	if err := tx.Create(&conversation).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar conversa direta"})
+		return
+	}
+
+	// Adicionar participantes na conversa
+	participants := []models.ConversationParticipant{
+		{
+			ID:             utils.GenerateUUID(),
+			ConversationID: conversation.ID,
+			UserID:         userID,
+			JoinedAt:       time.Now(),
+		},
+		{
+			ID:             utils.GenerateUUID(),
+			ConversationID: conversation.ID,
+			UserID:         req.ContactID,
+			JoinedAt:       time.Now(),
+		},
+	}
+
+	for _, participant := range participants {
+		if err := tx.Create(&participant).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao adicionar participante na conversa"})
+			return
+		}
+	}
+
+	// Commit da transação
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar adição de contato"})
+		return
+	}
+
+	// Opcional: Notificar usuários via WebSocket
+	// Implementar lógica de notificação se necessário
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Contato adicionado com sucesso e conversa criada"})
 }
 
 // RemoveContact remove um contato do usuário

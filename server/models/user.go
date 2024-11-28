@@ -9,14 +9,14 @@ type User struct {
 	ID                 string    `gorm:"primaryKey" json:"id"`
 	Username           string    `gorm:"unique;not null" json:"username"`
 	PasswordHash       string    `json:"-"`
-	EncryptedPrivateKey string   `json:"encrypted_private_key"`
-	PublicKey          string    `json:"publicKey"`
+	EncryptedPrivateKey string    `json:"encrypted_private_key"`
+	PublicKey          PublicKeyData `gorm:"serializer:json" json:"public_key"`
 	CreatedAt          time.Time `json:"created_at"`
 	LastSeen           time.Time `json:"last_seen"`
 
 	// Relacionamentos
-	Conversations []Conversation `gorm:"many2many:conversations_users;"`
-	Groups        []Group        `gorm:"foreignKey:AdminID"`
+	Contacts []Contact `gorm:"foreignKey:UserID"`
+	ConversationParticipants []ConversationParticipant `gorm:"foreignKey:UserID"`
 }
 
 // PublicKeyData ainda será útil para unmarshaling

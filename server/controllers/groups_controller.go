@@ -5,16 +5,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"server/config"
 	"server/models"
 	"server/utils"
-	"server/config"
 )
 
-// CreateGroupRequest atualizado
 type CreateGroupRequest struct {
-	Name           string            `json:"name" binding:"required"`
-	ParticipantIDs []string          `json:"participant_ids" binding:"required"`
-	SenderKeys     map[string][]byte `json:"sender_keys" binding:"required"` // Chave por UserID
+	Name           string                         `json:"name" binding:"required"`
+	ParticipantIDs []string                      `json:"participant_ids" binding:"required"`
 }
 
 func CreateGroup(c *gin.Context) {
@@ -30,78 +28,54 @@ func CreateGroup(c *gin.Context) {
 		return
 	}
 
-	group := models.Group{
+	tx := config.DB.Begin()
+
+	conversation := models.Conversation{
 		ID:        utils.GenerateUUID(),
-		Name:      req.Name,
-		SenderKey: nil, // SenderKey agora está associada a cada membro
-		AdminID:   userID,
+		Type:      "GROUP",
 		CreatedAt: time.Now(),
 	}
 
-	if err := config.DB.Create(&group).Error; err != nil {
+	if err := tx.Create(&conversation).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar conversa"})
+		return
+	}
+
+	group := models.Group{
+		ConversationID: conversation.ID,
+		Name:          req.Name,
+		AdminID:       userID,
+		CreatedAt:     time.Now(),
+	}
+
+	if err := tx.Create(&group).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar grupo"})
 		return
 	}
 
-	// Adicionar o administrador como membro com a sender key criptografada
-	adminSenderKey, exists := req.SenderKeys[userID]
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Sender key criptografada para o administrador é obrigatória"})
-		return
-	}
+	allParticipants := append(req.ParticipantIDs, userID)
+	for _, pid := range allParticipants {
+		participant := models.ConversationParticipant{
+			ID:             utils.GenerateUUID(),
+			ConversationID: conversation.ID,
+			UserID:         pid,
+			JoinedAt:       time.Now(),
+		}
 
-	adminMember := models.GroupMember{
-		ID:                 utils.GenerateUUID(),
-		GroupID:            group.ID,
-		UserID:             userID,
-		EncryptedSenderKey: adminSenderKey,
-		JoinedAt:           time.Now(),
-	}
-
-	if err := config.DB.Create(&adminMember).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao adicionar administrador ao grupo"})
-		return
-	}
-
-	// Adicionar outros participantes com suas sender keys criptografadas
-	for _, participantID := range req.ParticipantIDs {
-		senderKey, exists := req.SenderKeys[participantID]
-		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Sender key criptografada faltando para algum participante"})
+		if err := tx.Create(&participant).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao adicionar participante"})
 			return
 		}
+	}
 
-		member := models.GroupMember{
-			ID:                 utils.GenerateUUID(),
-			GroupID:            group.ID,
-			UserID:             participantID,
-			EncryptedSenderKey: senderKey,
-			JoinedAt:           time.Now(),
-		}
-
-		if err := config.DB.Create(&member).Error; err != nil {
-			// Opcional: Trate erros específicos ou registre logs
-			continue
-		}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar criação do grupo"})
+		return
 	}
 
 	c.JSON(http.StatusCreated, group)
-}
-
-// ListGroups lista todos os grupos do usuário
-func ListGroups(c *gin.Context) {
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	var groups []models.Group
-	if err := config.DB.Joins("JOIN group_members ON group_members.group_id = groups.id").
-		Where("group_members.user_id = ?", userID).Find(&groups).Error; err != nil {
-		c.JSON(http.StatusOK, []models.Group{}) // Retorna array vazio em vez de erro
-		return
-	}
-
-	c.JSON(http.StatusOK, groups)
 }

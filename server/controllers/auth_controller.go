@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -38,15 +36,6 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// Imprimir a chave pública antes de fazer o marshal
-	fmt.Println("Chave pública: ", req.PublicKey)
-	// Converter PublicKey para JSON string
-	publicKeyJSON, err := json.Marshal(req.PublicKey)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar chave pública"})
-		return
-	}
-
 	// Hash da senha
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -60,7 +49,7 @@ func RegisterUser(c *gin.Context) {
 		Username:            req.Username,
 		PasswordHash:        string(hashedPassword),
 		EncryptedPrivateKey: req.EncryptedPrivateKey,
-		PublicKey:           string(publicKeyJSON),
+		PublicKey:           req.PublicKey,
 		CreatedAt:           time.Now(),
 		LastSeen:            time.Now(),
 	}
@@ -174,17 +163,10 @@ func GetPublicKey(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := config.DB.Select("publicKey").First(&user, "id = ?", targetUserID).Error; err != nil {
+	if err := config.DB.Select("PublicKey").First(&user, "id = ?", targetUserID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
 		return
 	}
 
-	// Parse o JSON string para um map antes de enviar
-	var publicKey interface{}
-	if err := json.Unmarshal([]byte(user.PublicKey), &publicKey); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar chave pública"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"publicKey": publicKey})
+	c.JSON(http.StatusOK, gin.H{"PublicKey": user.PublicKey})
 }
