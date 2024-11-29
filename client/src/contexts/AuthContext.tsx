@@ -1,140 +1,56 @@
-import { createContext, useState, useEffect, ReactNode } from 'react';
-import api from '../services/api';
-import { decryptPrivateKey } from '../utils/cryptoUtils';
-import { PrivateKey, PublicKey } from '../utils/elgamal';
-import { set, get } from 'idb-keyval';
-import { User } from '../types/chat';
+import { createContext, useContext, useState } from 'react'
+import { PublicKey, PrivateKey } from '@/utils/elgamal'
 
-interface AuthContextType {
-  token: string | null;
-  privateKey: PrivateKey | null;
-  user: User | null;
-  isLoading: boolean;
-  login: (token: string, encryptedPrivateKey: string, password: string, userData: User) => Promise<void>;
-  logout: () => void;
-  setAuthData: (data: { token: string; privateKey: PrivateKey; user: User }) => Promise<void>;
+interface AuthState {
+  userId: string | null
+  publicKey: PublicKey | null
+  privateKey: PrivateKey | null
+  setAuthState: (userId: string, publicKey: PublicKey, privateKey: PrivateKey) => void
+  clearAuth: () => void
 }
 
-export const AuthContext = createContext<AuthContextType>({
-  token: null,
-  privateKey: null,
-  user: null,
-  isLoading: true,
-  login: async () => {},
-  logout: () => {},
-  setAuthData: async () => {},
-});
+const AuthContext = createContext<AuthState | null>(null)
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [userId, setUserId] = useState<string | null>(null)
+  const [publicKey, setPublicKey] = useState<PublicKey | null>(null)
+  const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null)
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (token) {
-        try {
-          const response = await api.get('/api/user/profile');
+  const setAuthState = (
+    userId: string,
+    publicKey: PublicKey,
+    privateKey: PrivateKey
+  ) => {
+    setUserId(userId)
+    setPublicKey(publicKey)
+    setPrivateKey(privateKey)
+  }
 
-          if (!response.data?.id || !response.data?.publicKey) {
-            console.error('Dados do usuário incompletos');
-            console.error('Resposta da API:', response.data);
-            return;
-          }
-
-          setUser({
-            id: response.data.id,
-            username: response.data.username,
-            publicKey: response.data.publicKey
-          });
-        } catch (err) {
-          console.error('Erro ao carregar dados do usuário:', err);
-          console.error('Erro completo:', err);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    loadUserData();
-  }, [token]);
-
-  useEffect(() => {
-    const loadPrivateKey = async () => {
-      if (token) {
-        try {
-          const storedPrivateKey = await get<PrivateKey>('privateKey');
-          if (storedPrivateKey) {
-            setPrivateKey(storedPrivateKey);
-          }
-        } catch (err) {
-          console.error('Erro ao carregar a chave privada do IndexedDB:', err);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    loadPrivateKey();
-  }, [token]);
-
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-    } else {
-      localStorage.removeItem('token');
-      delete api.defaults.headers.Authorization;
-      setPrivateKey(null);
-      setUser(null);
-    }
-  }, [token]);
-
-  const loginUser = async (newToken: string, encryptedPrivateKey: string, password: string, userData: User) => {
-    try {
-      setToken(newToken);
-      localStorage.setItem('token', newToken);
-      api.defaults.headers.Authorization = `Bearer ${newToken}`;
-
-      const decryptedPrivateKey = await decryptPrivateKey(encryptedPrivateKey, password);
-      setPrivateKey(decryptedPrivateKey);
-      await set('privateKey', decryptedPrivateKey);
-
-      console.log("Usuário definido no AuthContext:", userData);
-      setUser(userData);
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    setToken(null);
-    setPrivateKey(null);
-    setUser(null);
-    try {
-      await set('privateKey', null);
-    } catch (err) {
-      console.error('Erro ao remover a chave privada do IndexedDB:', err);
-    }
-  };
-
-  const setAuthData = async (data: { token: string; privateKey: PrivateKey; user: User }) => {
-    setToken(data.token);
-    setPrivateKey(data.privateKey);
-    setUser(data.user);
-  };
+  const clearAuth = () => {
+    setUserId(null)
+    setPublicKey(null)
+    setPrivateKey(null)
+  }
 
   return (
-    <AuthContext.Provider value={{
-      token,
-      privateKey,
-      user,
-      isLoading,
-      login: loginUser,
-      logout,
-      setAuthData
-    }}>
+    <AuthContext.Provider
+      value={{
+        userId,
+        publicKey,
+        privateKey,
+        setAuthState,
+        clearAuth
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider')
+  }
+  return context
+}

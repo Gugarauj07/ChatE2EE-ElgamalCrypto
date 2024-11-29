@@ -130,12 +130,3 @@ const base64ToBuffer = (base64: string): Uint8Array => {
   });
   return buffer;
 };
-
-export const encryptMessage = (message: string, senderKey: string): string => {
-  return CryptoJS.AES.encrypt(message, senderKey).toString();
-};
-
-export const decryptMessage = (encryptedContent: string, senderKey: string): string => {
-  const bytes = CryptoJS.AES.decrypt(encryptedContent, senderKey);
-  return bytes.toString(CryptoJS.enc.Utf8);
-};

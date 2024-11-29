@@ -1,37 +1,26 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import useAuth from './hooks/useAuth';
-import { ContactProvider } from './contexts/ContactContext';
-import { ConversationProvider } from './contexts/ConversationContext';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Toaster } from './components/ui/toaster'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import AuthLayout from './components/layout/AuthLayout'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
-const App = () => {
-  const { token } = useAuth();
-
+function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
-        <Route path="/" element={token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
-        <Route path="/login" element={!token ? <Login /> : <Navigate to="/dashboard" />} />
-        <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" />} />
-        <Route
-          path="/dashboard"
-          element={
-            token ? (
-              <ContactProvider>
-                <ConversationProvider>
-                  <Dashboard />
-                </ConversationProvider>
-              </ContactProvider>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-      </Routes>
-    </Router>
-  );
-};
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
 
-export default App;
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Chat />} />
+        </Route>
+      </Routes>
+      <Toaster />
+    </BrowserRouter>
+  )
+}
+
+export default App

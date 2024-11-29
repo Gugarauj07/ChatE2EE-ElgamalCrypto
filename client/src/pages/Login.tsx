@@ -1,12 +1,95 @@
-import React from 'react';
-import LoginForm from '../components/Auth/LoginForm';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card'
+import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
+import { authService } from '@/services/authService'
+import { decryptPrivateKey } from '@/utils/cryptoUtils'
 
-const Login = () => {
+export default function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const { setAuthState } = useAuth()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await authService.login(email, password)
+
+      // Descriptografar a chave privada
+      const privateKey = await decryptPrivateKey(
+        response.encryptedPrivateKey,
+        password
+      )
+
+      // Atualizar o contexto com as informações necessárias
+      setAuthState(
+        response.user.id,
+        JSON.parse(response.publicKey),
+        privateKey
+      )
+
+      navigate('/')
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer login",
+        description: "Verifique suas credenciais e tente novamente."
+      })
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <LoginForm />
-    </div>
-  );
-};
-
-export default Login; 
+    <Card className="w-full">
+      <CardHeader className="space-y-1">
+        <h2 className="text-2xl font-bold text-center">Login</h2>
+        <p className="text-sm text-muted-foreground text-center">
+          Entre com suas credenciais para acessar sua conta
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full">
+            Entrar
+          </Button>
+        </form>
+      </CardContent>
+      <CardFooter className="flex justify-center">
+        <Button variant="link" onClick={() => navigate('/register')}>
+          Não tem uma conta? Registre-se
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
