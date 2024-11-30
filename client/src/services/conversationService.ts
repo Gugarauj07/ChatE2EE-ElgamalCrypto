@@ -4,7 +4,7 @@ import { Conversation, Message } from '@/types/chat'
 
 export const conversationService = {
   async listConversations(): Promise<Conversation[]> {
-    const response = await fetch(`${API_BASE_URL}/conversations`, {
+    const response = await fetch(`${API_BASE_URL}/api/conversations`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -19,7 +19,7 @@ export const conversationService = {
   },
 
   async getConversation(id: string): Promise<{ conversation: Conversation, messages: Message[] }> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/conversations/${id}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }

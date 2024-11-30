@@ -5,6 +5,7 @@ import Register from './pages/Register'
 import ChatLayout from './components/layout/ChatLayout'
 import AuthLayout from './components/layout/AuthLayout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import Chat from './components/chat/Chat'
 import { AuthProvider } from './contexts/AuthContext'
 
 function App() {
@@ -17,7 +18,9 @@ function App() {
             <Route path="/register" element={<Register />} />
           </Route>
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<ChatLayout />} />
+            <Route element={<ChatLayout />}>
+              <Route path="/" element={<Chat />} />
+            </Route>
           </Route>
         </Routes>
         <Toaster />

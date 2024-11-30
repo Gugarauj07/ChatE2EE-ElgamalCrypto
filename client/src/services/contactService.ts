@@ -12,7 +12,7 @@ interface Contact {
 
 export const contactService = {
   async searchUsers(query: string): Promise<Contact[]> {
-    const response = await fetch(`${API_BASE_URL}/contacts/search?q=${query}`, {
+    const response = await fetch(`${API_BASE_URL}/api/contacts/search?q=${query}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -27,7 +27,7 @@ export const contactService = {
   },
 
   async addContact(contactId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/contacts`, {
+    const response = await fetch(`${API_BASE_URL}/api/contacts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ export const contactService = {
   },
 
   async listContacts(): Promise<Contact[]> {
-    const response = await fetch(`${API_BASE_URL}/contacts`, {
+    const response = await fetch(`${API_BASE_URL}/api/contacts`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }

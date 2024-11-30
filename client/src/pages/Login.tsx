@@ -36,7 +36,8 @@ export default function Login() {
       setAuthState(
         response.user.id,
         response.publicKey,
-        privateKey
+        privateKey,
+        response.token
       )
 
       navigate('/')

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -40,27 +41,7 @@ func ListConversations(c *gin.Context) {
 
 	var conversations []ConversationResponse
 
-	// Buscar todas as conversas do usuário com suas últimas mensagens
-	err = config.DB.Raw(`
-		WITH LastMessages AS (
-			SELECT DISTINCT ON (m.conversation_id)
-				m.conversation_id,
-				m.id as message_id,
-				m.created_at as message_date,
-				mr.encrypted_content,
-				m.sender_id
-			FROM messages m
-			JOIN message_recipients mr ON mr.message_id = m.id
-			WHERE mr.recipient_id = ?
-			ORDER BY m.conversation_id, m.created_at DESC
-		),
-		UnreadCounts AS (
-			SELECT m.conversation_id, COUNT(*) as unread
-			FROM messages m
-			JOIN message_recipients mr ON mr.message_id = m.id
-			WHERE mr.recipient_id = ? AND mr.status = 'SENT'
-			GROUP BY m.conversation_id
-		)
+	query := `
 		SELECT
 			c.id,
 			c.type,
@@ -68,25 +49,39 @@ func ListConversations(c *gin.Context) {
 				WHEN c.type = 'GROUP' THEN g.name
 				ELSE u.username
 			END as name,
-			lm.message_id,
-			lm.encrypted_content,
-			lm.message_date,
-			COALESCE(uc.unread, 0) as unread_count,
-			COALESCE(lm.message_date, c.created_at) as updated_at
+			m.id as last_message_id,
+			mr.encrypted_content as last_message_content,
+			m.created_at as last_message_date,
+			(
+				SELECT COUNT(*)
+				FROM messages msg
+				JOIN message_recipients mrec ON mrec.message_id = msg.id
+				WHERE msg.conversation_id = c.id
+				AND mrec.recipient_id = @user_id
+				AND mrec.status = 'SENT'
+			) as unread_count,
+			COALESCE(m.created_at, c.created_at) as updated_at
 		FROM conversations c
-		JOIN conversation_participants cp ON cp.conversation_id = c.id
+		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = @user_id
 		LEFT JOIN groups g ON g.conversation_id = c.id
-		LEFT JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id != ?
+		LEFT JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id != @user_id
 		LEFT JOIN users u ON u.id = cp2.user_id
-		LEFT JOIN LastMessages lm ON lm.conversation_id = c.id
-		LEFT JOIN UnreadCounts uc ON uc.conversation_id = c.id
-		WHERE cp.user_id = ?
-		ORDER BY COALESCE(lm.message_date, c.created_at) DESC
-	`, userID, userID, userID, userID).Scan(&conversations).Error
+		LEFT JOIN (
+			SELECT conversation_id, MAX(created_at) as max_date
+			FROM messages
+			GROUP BY conversation_id
+		) latest ON latest.conversation_id = c.id
+		LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at = latest.max_date
+		LEFT JOIN message_recipients mr ON mr.message_id = m.id AND mr.recipient_id = @user_id
+		ORDER BY updated_at DESC`
 
-	if err != nil {
+	if err := config.DB.Raw(query, sql.Named("user_id", userID)).Scan(&conversations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar conversas"})
 		return
+	}
+
+	if conversations == nil {
+		conversations = []ConversationResponse{}
 	}
 
 	c.JSON(http.StatusOK, conversations)

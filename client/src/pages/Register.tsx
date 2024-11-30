@@ -47,7 +47,8 @@ export default function Register() {
       setAuthState(
         response.user.id,
         response.publicKey,
-        privateKey
+        privateKey,
+        response.token
       )
 
       toast({
