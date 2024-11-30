@@ -15,7 +15,7 @@ import { authService } from '@/services/authService'
 import { decryptPrivateKey } from '@/utils/cryptoUtils'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -24,7 +24,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await authService.login(email, password)
+      const response = await authService.login(username, password)
 
       // Descriptografar a chave privada
       const privateKey = await decryptPrivateKey(
@@ -35,7 +35,7 @@ export default function Login() {
       // Atualizar o contexto com as informações necessárias
       setAuthState(
         response.user.id,
-        JSON.parse(response.publicKey),
+        response.publicKey,
         privateKey
       )
 
@@ -44,7 +44,7 @@ export default function Login() {
       toast({
         variant: "destructive",
         title: "Erro ao fazer login",
-        description: "Verifique suas credenciais e tente novamente."
+        description: error instanceof Error ? error.message : "Verifique suas credenciais e tente novamente."
       })
     }
   }
@@ -60,13 +60,13 @@ export default function Login() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="seu_username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>

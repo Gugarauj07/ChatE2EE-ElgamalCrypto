@@ -17,7 +17,7 @@ import (
 type RegisterRequest struct {
 	Username            string              `json:"username" binding:"required,alphanum"`
 	Password            string              `json:"password" binding:"required"`
-	EncryptedPrivateKey string              `json:"encrypted_private_key" binding:"required"`
+	EncryptedPrivateKey string              `json:"encryptedPrivateKey" binding:"required"`
 	PublicKey           models.PublicKeyData `json:"publicKey" binding:"required"`
 }
 
@@ -55,7 +55,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar usuário"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar usuário: " + err.Error()})
 		return
 	}
 
@@ -67,12 +67,13 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"token": token,
+		"token":               token,
 		"user": gin.H{
-			"id":        user.ID,
-			"username":  user.Username,
-			"publicKey": req.PublicKey,
+			"id":       user.ID,
+			"username": user.Username,
 		},
+		"publicKey":           user.PublicKey,
+		"encryptedPrivateKey": user.EncryptedPrivateKey,
 	})
 }
 
@@ -112,11 +113,13 @@ func LoginUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login bem-sucedido",
 		"token": token,
-		"encrypted_private_key": user.EncryptedPrivateKey,
-		"id": user.ID,
-		"username": user.Username,
+		"user": gin.H{
+			"id":       user.ID,
+			"username": user.Username,
+		},
+		"publicKey":           user.PublicKey,
+		"encryptedPrivateKey": user.EncryptedPrivateKey,
 	})
 }
 

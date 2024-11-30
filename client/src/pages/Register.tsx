@@ -15,8 +15,7 @@ import { authService } from '@/services/authService'
 import { decryptPrivateKey } from '@/utils/cryptoUtils'
 
 export default function Register() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const navigate = useNavigate()
@@ -36,7 +35,7 @@ export default function Register() {
     }
 
     try {
-      const response = await authService.register(email, password, name)
+      const response = await authService.register(username, password)
 
       // Descriptografar a chave privada
       const privateKey = await decryptPrivateKey(
@@ -47,7 +46,7 @@ export default function Register() {
       // Atualizar o contexto
       setAuthState(
         response.user.id,
-        JSON.parse(response.publicKey),
+        response.publicKey,
         privateKey
       )
 
@@ -77,23 +76,12 @@ export default function Register() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="name"
-              placeholder="Seu nome completo"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              placeholder="Escolha um username único"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>

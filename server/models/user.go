@@ -6,13 +6,13 @@ import (
 
 // User representa um usuário do sistema
 type User struct {
-	ID                 string    `gorm:"primaryKey" json:"id"`
-	Username           string    `gorm:"unique;not null" json:"username"`
-	PasswordHash       string    `json:"-"`
-	EncryptedPrivateKey string    `json:"encrypted_private_key"`
-	PublicKey          PublicKeyData `gorm:"serializer:json" json:"public_key"`
-	CreatedAt          time.Time `json:"created_at"`
-	LastSeen           time.Time `json:"last_seen"`
+	ID                  string         `json:"id" gorm:"primaryKey"`
+	Username            string         `json:"username" gorm:"unique"`
+	PasswordHash        string         `json:"-"`
+	EncryptedPrivateKey string         `json:"encryptedPrivateKey"`
+	PublicKey           PublicKeyData  `json:"publicKey" gorm:"serializer:json"`
+	CreatedAt           time.Time      `json:"createdAt"`
+	LastSeen           time.Time      `json:"lastSeen"`
 
 	// Relacionamentos
 	Contacts []Contact `gorm:"foreignKey:UserID"`

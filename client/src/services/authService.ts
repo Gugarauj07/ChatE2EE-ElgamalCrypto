@@ -5,15 +5,20 @@ interface AuthResponse {
   token: string
   user: {
     id: string
-    email: string
-    name: string
+    username: string
   }
-  publicKey: string
+  publicKey: {
+    p: string
+    g: string
+    y: string
+  }
   encryptedPrivateKey: string
 }
 
+export const API_BASE_URL = 'http://localhost:8080'
+
 export const authService = {
-  async register(email: string, password: string, name: string) {
+  async register(username: string, password: string) {
     // Gerar par de chaves ElGamal
     const elgamal = new ElGamal()
     const { publicKey, privateKey } = elgamal
@@ -21,36 +26,38 @@ export const authService = {
     // Criptografar chave privada com a senha do usuário
     const encryptedPrivateKey = await encryptPrivateKey(privateKey, password)
 
-    const response = await fetch('/api/auth/register', {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email,
+        username,
         password,
-        name,
         publicKey,
         encryptedPrivateKey
       })
     })
 
     if (!response.ok) {
-      throw new Error('Erro no registro')
+      const error = await response.json()
+      throw new Error(error.error || 'Erro no registro')
     }
 
     return await response.json() as AuthResponse
   },
 
-  async login(email: string, password: string) {
-    const response = await fetch('/api/auth/login', {
+  async login(username: string, password: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ username, password })
     })
 
     if (!response.ok) {
-      throw new Error('Credenciais inválidas')
+      const error = await response.json()
+      throw new Error(error.error || 'Credenciais inválidas')
     }
 
-    return await response.json() as AuthResponse
+    const data = await response.json() as AuthResponse
+    return data
   }
 }
