@@ -167,3 +167,39 @@ func RemoveContact(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Contato removido com sucesso"})
 }
+
+// SearchUsers busca usuários pelo nome de usuário
+func SearchUsers(c *gin.Context) {
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parâmetro de busca é obrigatório"})
+		return
+	}
+
+	var users []models.User
+	if err := config.DB.
+		Where("username LIKE ? AND id != ?", "%"+query+"%", userID).
+		Select("id, username, public_key").
+		Limit(10).
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar usuários"})
+		return
+	}
+
+	response := make([]gin.H, 0)
+	for _, user := range users {
+		response = append(response, gin.H{
+			"id":        user.ID,
+			"username":  user.Username,
+			"publicKey": user.PublicKey,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
