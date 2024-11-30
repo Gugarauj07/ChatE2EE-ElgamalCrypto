@@ -25,10 +25,9 @@ type SendMessageRequest struct {
 type ConversationResponse struct {
 	ID           string    `json:"id"`
 	Type         string    `json:"type"`
-	Name         string    `json:"name"`           // Nome do grupo ou do contato
-	LastMessage  *Message  `json:"last_message"`   // Pode ser nulo
+	Name         string    `json:"name"`
 	UnreadCount  int       `json:"unread_count"`
-	UpdatedAt    time.Time `json:"updated_at"`     // Baseado na última mensagem ou criação
+	UpdatedAt    string    `json:"updated_at"`
 }
 
 // ListConversations lista todas as conversas do usuário autenticado
@@ -39,8 +38,6 @@ func ListConversations(c *gin.Context) {
 		return
 	}
 
-	var conversations []ConversationResponse
-
 	query := `
 		SELECT
 			c.id,
@@ -49,9 +46,6 @@ func ListConversations(c *gin.Context) {
 				WHEN c.type = 'GROUP' THEN g.name
 				ELSE u.username
 			END as name,
-			m.id as last_message_id,
-			mr.encrypted_content as last_message_content,
-			m.created_at as last_message_date,
 			(
 				SELECT COUNT(*)
 				FROM messages msg
@@ -60,7 +54,7 @@ func ListConversations(c *gin.Context) {
 				AND mrec.recipient_id = @user_id
 				AND mrec.status = 'SENT'
 			) as unread_count,
-			COALESCE(m.created_at, c.created_at) as updated_at
+			datetime(COALESCE(m.created_at, c.created_at)) as updated_at
 		FROM conversations c
 		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = @user_id
 		LEFT JOIN groups g ON g.conversation_id = c.id
@@ -72,9 +66,9 @@ func ListConversations(c *gin.Context) {
 			GROUP BY conversation_id
 		) latest ON latest.conversation_id = c.id
 		LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at = latest.max_date
-		LEFT JOIN message_recipients mr ON mr.message_id = m.id AND mr.recipient_id = @user_id
 		ORDER BY updated_at DESC`
 
+	var conversations []ConversationResponse
 	if err := config.DB.Raw(query, sql.Named("user_id", userID)).Scan(&conversations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar conversas"})
 		return
