@@ -81,7 +81,7 @@ func AddContact(c *gin.Context) {
 		ID:        utils.GenerateUUID(),
 		UserID:    userID,
 		ContactID: req.ContactID,
-		AddedAt:   time.Now(),
+		AddedAt:   time.Now().Add(-4 * time.Hour),
 	}
 	if err := tx.Create(&contact).Error; err != nil {
 		tx.Rollback()
@@ -93,7 +93,7 @@ func AddContact(c *gin.Context) {
 	conversation := models.Conversation{
 		ID:        utils.GenerateUUID(),
 		Type:      "DIRECT",
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().Add(-4 * time.Hour),
 	}
 	if err := tx.Create(&conversation).Error; err != nil {
 		tx.Rollback()
@@ -107,13 +107,13 @@ func AddContact(c *gin.Context) {
 			ID:             utils.GenerateUUID(),
 			ConversationID: conversation.ID,
 			UserID:         userID,
-			JoinedAt:       time.Now(),
+			JoinedAt:       time.Now().Add(-4 * time.Hour),
 		},
 		{
 			ID:             utils.GenerateUUID(),
 			ConversationID: conversation.ID,
 			UserID:         req.ContactID,
-			JoinedAt:       time.Now(),
+			JoinedAt:       time.Now().Add(-4 * time.Hour),
 		},
 	}
 

@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"server/config"
 	"server/models"
 	"server/utils"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // CreateConversationRequest representa a payload para criar uma conversa
@@ -165,7 +166,7 @@ func SendMessage(c *gin.Context) {
 		ID:             utils.GenerateUUID(),
 		ConversationID: conversationID,
 		SenderID:       userID,
-		CreatedAt:      time.Now(),
+		CreatedAt:      time.Now().Add(-4 * time.Hour),
 	}
 
 	if err := tx.Create(&message).Error; err != nil {
@@ -182,7 +183,7 @@ func SendMessage(c *gin.Context) {
 			RecipientID:      recipientID,
 			EncryptedContent: encryptedContent,
 			Status:           "SENT",
-			StatusUpdatedAt:  time.Now(),
+			StatusUpdatedAt:  time.Now().Add(-4 * time.Hour),
 		}
 
 		if err := tx.Create(&messageRecipient).Error; err != nil {
@@ -232,7 +233,7 @@ func UpdateMessageStatus(c *gin.Context) {
 		Where("message_id = ? AND recipient_id = ?", messageID, userID).
 		Updates(map[string]interface{}{
 			"status":             req.Status,
-			"status_updated_at":  time.Now(),
+			"status_updated_at":  time.Now().Add(-4 * time.Hour),
 		})
 
 	if result.Error != nil {

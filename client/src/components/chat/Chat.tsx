@@ -34,12 +34,13 @@ export default function Chat() {
   return (
     <div className="h-full flex">
       <aside className="w-80 border-r flex flex-col">
-        <div className="p-4 border-b space-y-2">
-          <div className="flex gap-2">
+        <div className="p-6 border-b">
+          <div className="flex flex-col gap-3">
             <AddContactDialog onSuccess={loadConversations} />
             <CreateGroupDialog onSuccess={loadConversations} />
           </div>
         </div>
+        <h2 className="font-semibold m-4 text-md">Conversas</h2>
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-2">
             {conversations.map((conversation) => (
@@ -64,7 +65,7 @@ export default function Chat() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium truncate">{conversation.name}</span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDistanceToNow(new Date(conversation.updated_at), {
+                        {formatDistanceToNow(new Date(conversation.updated_at + '-0400'), {
                           locale: ptBR,
                           addSuffix: true
                         })}
