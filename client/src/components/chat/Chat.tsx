@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import ContactList from './ContactList'
 import { Conversation } from '@/types/chat'
 import { conversationService } from '@/services/conversationService'
 import { useToast } from '@/hooks/use-toast'
+import AddContactDialog from '../dialogs/AddContactDialog'
+import CreateGroupDialog from '../dialogs/CreateGroupDialog'
+import { MessageCircle, Users } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -29,31 +33,58 @@ export default function Chat() {
 
   return (
     <div className="h-full flex">
-      {/* Lista de contatos e conversas */}
       <aside className="w-80 border-r flex flex-col">
-        <ContactList onConversationCreated={loadConversations} />
+        <div className="p-4 border-b space-y-2">
+          <div className="flex gap-2">
+            <AddContactDialog onSuccess={loadConversations} />
+            <CreateGroupDialog onSuccess={loadConversations} />
+          </div>
+        </div>
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-2">
-            <h3 className="text-sm font-semibold">Conversas</h3>
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
-                className="p-2 hover:bg-accent rounded cursor-pointer"
+                className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                  selectedConversation === conversation.id
+                    ? 'bg-accent text-accent-foreground'
+                    : 'hover:bg-accent/50'
+                }`}
                 onClick={() => setSelectedConversation(conversation.id)}
               >
-                <div className="font-medium">{conversation.name}</div>
-                {conversation.lastMessage && (
-                  <div className="text-sm text-muted-foreground truncate">
-                    {conversation.lastMessage.content}
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0">
+                    {conversation.type === 'DIRECT' ? (
+                      <MessageCircle size={20} />
+                    ) : (
+                      <Users size={20} />
+                    )}
                   </div>
-                )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium truncate">{conversation.name}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(conversation.updated_at), {
+                          locale: ptBR,
+                          addSuffix: true
+                        })}
+                      </span>
+                    </div>
+                    {conversation.unread_count > 0 && (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground">
+                          {conversation.unread_count}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </ScrollArea>
       </aside>
 
-      {/* Área de mensagens */}
       <div className="flex-1 flex flex-col">
         {selectedConversation ? (
           <div>Área de mensagens será implementada aqui</div>

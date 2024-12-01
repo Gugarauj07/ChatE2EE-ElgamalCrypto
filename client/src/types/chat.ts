@@ -10,14 +10,10 @@ export interface Contact {
 
 export interface Conversation {
   id: string
-  type: 'individual' | 'group'
-  name: string // Nome do contato ou do grupo
-  lastMessage?: {
-    content: string
-    timestamp: string
-    senderId: string
-  }
-  participants: Contact[]
+  type: 'DIRECT' | 'GROUP'
+  name: string
+  unread_count: number
+  updated_at: string
 }
 
 export interface Message {

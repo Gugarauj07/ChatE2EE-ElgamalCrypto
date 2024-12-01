@@ -14,7 +14,11 @@ import { useToast } from '@/hooks/use-toast'
 import { Search, UserPlus, Loader2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-export default function AddContactDialog() {
+interface AddContactDialogProps {
+  onSuccess: () => Promise<void>;
+}
+
+export default function AddContactDialog({ onSuccess }: AddContactDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Contact[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -52,6 +56,7 @@ export default function AddContactDialog() {
       setOpen(false)
       setSearchQuery('')
       setSearchResults([])
+      await onSuccess()
     } catch (error) {
       toast({
         variant: "destructive",

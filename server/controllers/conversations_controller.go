@@ -39,7 +39,12 @@ func ListConversations(c *gin.Context) {
 	}
 
 	query := `
-		SELECT
+		WITH LatestMessage AS (
+			SELECT conversation_id, MAX(created_at) as max_date
+			FROM messages
+			GROUP BY conversation_id
+		)
+		SELECT DISTINCT
 			c.id,
 			c.type,
 			CASE
@@ -59,13 +64,9 @@ func ListConversations(c *gin.Context) {
 		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = @user_id
 		LEFT JOIN groups g ON g.conversation_id = c.id
 		LEFT JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id != @user_id
-		LEFT JOIN users u ON u.id = cp2.user_id
-		LEFT JOIN (
-			SELECT conversation_id, MAX(created_at) as max_date
-			FROM messages
-			GROUP BY conversation_id
-		) latest ON latest.conversation_id = c.id
-		LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at = latest.max_date
+		LEFT JOIN users u ON u.id = cp2.user_id AND c.type = 'DIRECT'
+		LEFT JOIN LatestMessage lm ON lm.conversation_id = c.id
+		LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at = lm.max_date
 		ORDER BY updated_at DESC`
 
 	var conversations []ConversationResponse
