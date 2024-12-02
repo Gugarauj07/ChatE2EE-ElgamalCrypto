@@ -19,7 +19,7 @@ export const conversationService = {
   },
 
   async getConversation(id: string): Promise<{ conversation: Conversation, messages: Message[] }> {
-    const response = await fetch(`${API_BASE_URL}/api/conversations/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/conversations/${id}?include_messages=true`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -28,6 +28,28 @@ export const conversationService = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Erro ao carregar conversa')
+    }
+
+    const data = await response.json()
+    return {
+      conversation: data.conversation,
+      messages: Array.isArray(data.messages) ? data.messages : []
+    }
+  },
+
+  async sendMessage(conversationId: string, content: string): Promise<Message> {
+    const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ content })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Erro ao enviar mensagem')
     }
 
     return await response.json()

@@ -15,20 +15,20 @@ import (
 
 // CreateConversationRequest representa a payload para criar uma conversa
 type CreateConversationRequest struct {
-	ParticipantID string `json:"participant_id" binding:"required"`
+	ParticipantID string `json:"participantId" binding:"required"`
 }
 
 // SendMessageRequest representa a payload para enviar uma mensagem
 type SendMessageRequest struct {
-	EncryptedContents map[string]models.ElGamalContent `json:"encrypted_contents" binding:"required"`
+	EncryptedContents map[string]models.ElGamalContent `json:"encryptedContents" binding:"required"`
 }
 
 type ConversationResponse struct {
-	ID           string    `json:"id"`
-	Type         string    `json:"type"`
-	Name         string    `json:"name"`
-	UnreadCount  int       `json:"unread_count"`
-	UpdatedAt    string    `json:"updated_at"`
+	ID          string    `json:"id"`
+	Type        string    `json:"type"`
+	Name        string    `json:"name"`
+	UnreadCount int       `json:"unreadCount"`
+	UpdatedAt   string    `json:"updatedAt"`
 }
 
 // ListConversations lista todas as conversas do usuário autenticado
@@ -95,18 +95,17 @@ func GetConversation(c *gin.Context) {
 	conversationID := c.Param("id")
 	includeMessages := c.Query("include_messages") == "true"
 
-	// Buscar conversa com participantes
 	var conversation models.Conversation
 	query := config.DB.
-		Joins("JOIN conversation_participants ON conversation_participants.conversation_id = conversations.id").
-		Where("conversations.id = ? AND conversation_participants.user_id = ?", conversationID, userID).
-		Preload("Participants.User")
+		Preload("Participants.User").
+		Where("id = ?", conversationID)
 
 	if includeMessages {
-		query = query.Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at DESC")
-		}).
-		Preload("Messages.Recipients", "recipient_id = ?", userID)
+		query = query.
+			Preload("Messages", func(db *gorm.DB) *gorm.DB {
+				return db.Order("created_at DESC")
+			}).
+			Preload("Messages.Recipients", "recipient_id = ?", userID)
 	}
 
 	if err := query.First(&conversation).Error; err != nil {
@@ -114,7 +113,46 @@ func GetConversation(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, conversation)
+	// Converter para DTO
+	dto := models.ConversationDTO{
+		ID:           conversation.ID,
+		Type:         conversation.Type,
+		CreatedAt:    conversation.CreatedAt,
+		Participants: make([]models.ParticipantDTO, 0),
+	}
+
+	// Converter participantes
+	for _, p := range conversation.Participants {
+		dto.Participants = append(dto.Participants, models.ParticipantDTO{
+			ID:        p.User.ID,
+			Username:  p.User.Username,
+			PublicKey: p.User.PublicKey,
+		})
+	}
+
+	// Inicializar o array de mensagens mesmo se estiver vazio
+	if includeMessages {
+		dto.Messages = make([]models.MessageDTO, 0)
+		for _, m := range conversation.Messages {
+			for _, r := range m.Recipients {
+				if r.RecipientID == userID {
+					dto.Messages = append(dto.Messages, models.MessageDTO{
+						ID:        m.ID,
+						SenderID:  m.SenderID,
+						CreatedAt: m.CreatedAt,
+						Content:   r.EncryptedContent,
+						Status:    r.Status,
+					})
+					break
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"conversation": dto,
+		"messages": dto.Messages,
+	})
 }
 
 // SendMessage envia uma nova mensagem para uma conversa específica

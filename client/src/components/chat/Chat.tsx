@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Conversation } from '@/types/chat'
+import { Conversation, Message } from '@/types/chat'
 import { conversationService } from '@/services/conversationService'
 import { useToast } from '@/hooks/use-toast'
 import AddContactDialog from '../dialogs/AddContactDialog'
@@ -8,10 +8,14 @@ import CreateGroupDialog from '../dialogs/CreateGroupDialog'
 import { MessageCircle, Users } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import ChatMessages from './ChatMessages'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Chat() {
+  const { userId } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
 
   useEffect(() => {
@@ -31,6 +35,56 @@ export default function Chat() {
     }
   }
 
+  const loadConversationDetails = async (conversationId: string) => {
+    try {
+      const { conversation, messages } = await conversationService.getConversation(conversationId)
+      setSelectedConversation(conversation)
+      setCurrentMessages(Array.isArray(messages) ? messages : [])
+      console.log('Conversa selecionada:', conversation)
+      console.log('Mensagens carregadas:', messages)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os detalhes da conversa"
+      })
+    }
+  }
+
+  const handleSelectConversation = (conversationId: string) => {
+    loadConversationDetails(conversationId)
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        return ''
+      }
+      return formatDistanceToNow(date, {
+        locale: ptBR,
+        addSuffix: true
+      })
+    } catch {
+      return ''
+    }
+  }
+
+  const handleSendMessage = async (content: string) => {
+    if (!selectedConversation) return
+
+    try {
+      const newMessage = await conversationService.sendMessage(selectedConversation.id, content)
+      setCurrentMessages([...currentMessages, newMessage])
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível enviar a mensagem"
+      })
+    }
+  }
+
   return (
     <div className="h-full flex">
       <aside className="w-80 border-r flex flex-col">
@@ -46,12 +100,12 @@ export default function Chat() {
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
+                onClick={() => handleSelectConversation(conversation.id)}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                  selectedConversation === conversation.id
+                  selectedConversation?.id === conversation.id
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent/50'
                 }`}
-                onClick={() => setSelectedConversation(conversation.id)}
               >
                 <div className="flex items-center gap-3">
                   <div className="shrink-0">
@@ -61,20 +115,21 @@ export default function Chat() {
                       <Users size={20} />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium truncate">{conversation.name}</span>
+                      <span className="font-medium truncate">
+                        {conversation.type === 'DIRECT' && Array.isArray(conversation.participants)
+                          ? conversation.participants.find(p => p.id !== userId)?.username || 'Usuário Desconhecido'
+                          : conversation.name}
+                      </span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDistanceToNow(new Date(conversation.updated_at + '-0400'), {
-                          locale: ptBR,
-                          addSuffix: true
-                        })}
+                        {conversation.updatedAt ? formatDate(conversation.updatedAt) : ''}
                       </span>
                     </div>
-                    {conversation.unread_count > 0 && (
+                    {conversation.unreadCount! > 0 && (
                       <div className="mt-1">
                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground">
-                          {conversation.unread_count}
+                          {conversation.unreadCount}
                         </span>
                       </div>
                     )}
@@ -85,10 +140,13 @@ export default function Chat() {
           </div>
         </ScrollArea>
       </aside>
-
       <div className="flex-1 flex flex-col">
         {selectedConversation ? (
-          <div>Área de mensagens será implementada aqui</div>
+          <ChatMessages
+            conversation={selectedConversation}
+            messages={currentMessages}
+            onSendMessage={handleSendMessage}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Selecione uma conversa para começar

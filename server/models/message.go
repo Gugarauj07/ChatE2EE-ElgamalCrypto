@@ -6,9 +6,9 @@ import (
 
 type Message struct {
 	ID             string    `gorm:"primaryKey" json:"id"`
-	ConversationID string    `gorm:"index;not null" json:"conversation_id"`
-	SenderID       string    `gorm:"index;not null" json:"sender_id"`
-	CreatedAt      time.Time `json:"created_at"`
+	ConversationID string    `gorm:"index;not null" json:"conversationId"`
+	SenderID       string    `gorm:"index;not null" json:"senderId"`
+	CreatedAt      time.Time `json:"createdAt"`
 
 	// Relacionamentos
 	Conversation Conversation       `gorm:"foreignKey:ConversationID"`
@@ -17,12 +17,12 @@ type Message struct {
 }
 
 type MessageRecipient struct {
-	ID              string        `gorm:"primaryKey" json:"id"`
-	MessageID       string        `gorm:"index;not null" json:"message_id"`
-	RecipientID     string        `gorm:"index;not null" json:"recipient_id"`
-	EncryptedContent ElGamalContent `gorm:"type:jsonb" json:"encrypted_content"`
-	Status          string        `gorm:"not null" json:"status"` // SENT, RECEIVED, READ
-	StatusUpdatedAt time.Time     `json:"status_updated_at"`
+	ID               string        `gorm:"primaryKey" json:"id"`
+	MessageID        string        `gorm:"index;not null" json:"messageId"`
+	RecipientID      string        `gorm:"index;not null" json:"recipientId"`
+	EncryptedContent ElGamalContent `gorm:"type:jsonb" json:"encryptedContent"`
+	Status           string        `gorm:"not null" json:"status"`
+	StatusUpdatedAt  time.Time     `json:"statusUpdatedAt"`
 
 	// Relacionamentos
 	Message   Message `gorm:"foreignKey:MessageID"`

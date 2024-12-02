@@ -11,8 +11,8 @@ import (
 )
 
 type CreateGroupRequest struct {
-	Name           string                         `json:"name" binding:"required"`
-	ParticipantIDs []string                      `json:"participant_ids" binding:"required"`
+	Name          string   `json:"name" binding:"required"`
+	ParticipantIDs []string `json:"participantIds" binding:"required"`
 }
 
 func CreateGroup(c *gin.Context) {
