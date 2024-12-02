@@ -207,7 +207,7 @@ func SendMessage(c *gin.Context) {
 			RecipientID:     recipientID,
 			EncryptedContent: encryptedContent,
 			Status:           "SENT",
-			StatusUpdatedAt:  time.Now().Add(-4 * time.Hour),
+			StatusUpdatedAt:  time.Now().In(time.FixedZone("BRT", -3*3600)),
 		}
 
 		if err := tx.Create(&recipient).Error; err != nil {

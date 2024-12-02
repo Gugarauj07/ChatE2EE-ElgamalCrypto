@@ -93,7 +93,7 @@ func AddContact(c *gin.Context) {
 	conversation := models.Conversation{
 		ID:        utils.GenerateUUID(),
 		Type:      "DIRECT",
-		CreatedAt: time.Now().Add(-4 * time.Hour),
+		CreatedAt: time.Now().In(time.FixedZone("BRT", -3*3600)),
 	}
 	if err := tx.Create(&conversation).Error; err != nil {
 		tx.Rollback()

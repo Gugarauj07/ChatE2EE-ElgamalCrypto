@@ -12,6 +12,9 @@ import (
 )
 
 func main() {
+	// Configurar o fuso horário padrão para Brasil
+	time.Local = time.FixedZone("BRT", -3*3600)
+
 	// Inicializar o banco de dados
 	config.InitDatabase()
 
