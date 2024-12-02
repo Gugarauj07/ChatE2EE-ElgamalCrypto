@@ -32,12 +32,11 @@ export interface Message {
   conversationId: string
   senderId: string
   content: {
-    [userId: string]: {
-      a: string
-      b: string
-      p: string
-    }
+    a: string
+    b: string
+    p: string
   }
   type?: 'sent' | 'received'
   createdAt?: string
+  status?: 'SENT' | 'DELIVERED' | 'READ'
 }

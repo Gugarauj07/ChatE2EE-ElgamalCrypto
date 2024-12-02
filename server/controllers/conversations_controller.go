@@ -179,8 +179,13 @@ func SendMessage(c *gin.Context) {
 
 	// Iniciar transação
 	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	// Criar mensagem
+	// Criar a mensagem
 	message := models.Message{
 		ID:             utils.GenerateUUID(),
 		ConversationID: conversationID,
@@ -188,37 +193,47 @@ func SendMessage(c *gin.Context) {
 		CreatedAt:      time.Now().Add(-4 * time.Hour),
 	}
 
+	// Salvar a mensagem
 	if err := tx.Create(&message).Error; err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar mensagem"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar mensagem"})
 		return
 	}
 
-	// Criar MessageRecipient para cada destinatário
+	// Salvar os conteúdos criptografados para cada destinatário
 	for recipientID, encryptedContent := range req.EncryptedContents {
-		messageRecipient := models.MessageRecipient{
-			ID:               utils.GenerateUUID(),
+		recipient := models.MessageRecipient{
 			MessageID:        message.ID,
-			RecipientID:      recipientID,
+			RecipientID:     recipientID,
 			EncryptedContent: encryptedContent,
 			Status:           "SENT",
 			StatusUpdatedAt:  time.Now().Add(-4 * time.Hour),
 		}
 
-		if err := tx.Create(&messageRecipient).Error; err != nil {
+		if err := tx.Create(&recipient).Error; err != nil {
 			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar mensagem para destinatário"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao salvar destinatários"})
 			return
 		}
 	}
 
+	// Commit da transação
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar envio da mensagem"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar transação"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, message)
+	// Retornar a mensagem criada com o conteúdo específico para o remetente
+	messageDTO := models.MessageDTO{
+		ID:        message.ID,
+		SenderID:  userID,
+		CreatedAt: message.CreatedAt,
+		Content:   req.EncryptedContents[userID],
+		Status:    "SENT",
+	}
+
+	c.JSON(http.StatusCreated, messageDTO)
 }
 
 // UpdateMessageStatus atualiza o status de uma mensagem para o usuário autenticado

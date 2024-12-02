@@ -65,14 +65,12 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     }
 
     try {
-      const encryptedContent = message.content[userId]
-
-      if (!encryptedContent) {
-        console.error('Conteúdo criptografado não encontrado para o usuário:', userId)
-        return ''
+      if (!message.content || !message.content.a || !message.content.b || !message.content.p) {
+        console.error('Mensagem com formato inválido:', message)
+        return 'Mensagem com formato inválido'
       }
 
-      return elgamal.decrypt(encryptedContent, privateKey)
+      return elgamal.decrypt(message.content, privateKey)
     } catch (error) {
       console.error('Erro ao descriptografar mensagem:', error)
       return 'Erro ao descriptografar mensagem'

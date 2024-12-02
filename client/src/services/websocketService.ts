@@ -29,18 +29,25 @@ export class WebSocketService {
           console.log('Dados brutos recebidos do WebSocket:', event.data)
           const wsMessage = JSON.parse(event.data)
           console.log('Mensagem parseada:', wsMessage)
-          if (wsMessage.type === 'message') {
-            const message = {
-              ...wsMessage.payload,
-              content: wsMessage.payload.encryptedContents,
-              type: 'received'
-            } as Message
 
-            console.log('Mensagem WebSocket recebida:', message)
-            this.messageHandlers.get(conversationId)?.forEach(handler => {
-              console.log('Chamando handler para mensagem:', message)
-              handler(message)
-            })
+          if (wsMessage.type === 'message' && wsMessage.payload) {
+            const { encryptedContents, senderId, conversationId } = wsMessage.payload
+            const userId = localStorage.getItem('userId')
+
+            if (!userId || !encryptedContents[userId]) {
+              console.error('Conteúdo criptografado não encontrado para o usuário atual')
+              return
+            }
+
+            const message: Message = {
+              conversationId,
+              senderId,
+              content: encryptedContents[userId],
+              type: 'received'
+            }
+
+            console.log('Mensagem WebSocket processada:', message)
+            this.messageHandlers.get(conversationId)?.forEach(handler => handler(message))
           }
         } catch (error) {
           console.error('Erro ao processar mensagem do WebSocket:', error)
