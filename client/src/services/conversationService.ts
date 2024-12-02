@@ -1,9 +1,10 @@
 // src/services/conversationService.ts
 import { API_BASE_URL } from './authService'
-import { Conversation, Message } from '@/types/chat'
+import { ConversationListItem, ConversationDetails, Message } from '@/types/chat'
+import { ElGamal } from '@/utils/elgamal'
 
 export const conversationService = {
-  async listConversations(): Promise<Conversation[]> {
+  async listConversations(): Promise<ConversationListItem[]> {
     const response = await fetch(`${API_BASE_URL}/api/conversations`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -18,7 +19,7 @@ export const conversationService = {
     return await response.json()
   },
 
-  async getConversation(id: string): Promise<{ conversation: Conversation, messages: Message[] }> {
+  async getConversation(id: string): Promise<ConversationDetails> {
     const response = await fetch(`${API_BASE_URL}/api/conversations/${id}?include_messages=true`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -32,19 +33,27 @@ export const conversationService = {
 
     const data = await response.json()
     return {
-      conversation: data.conversation,
-      messages: Array.isArray(data.messages) ? data.messages : []
+      ...data,
+      messages: data.messages || []
     }
   },
 
-  async sendMessage(conversationId: string, content: string): Promise<Message> {
+  async sendMessage(conversationId: string, content: string, participants: ConversationDetails['participants']): Promise<Message> {
+    const elgamal = new ElGamal()
+    const encryptedContents: { [key: string]: any } = {}
+
+    for (const participant of participants) {
+      const encrypted = elgamal.encrypt(content, participant.publicKey)
+      encryptedContents[participant.id] = encrypted
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ encryptedContents })
     })
 
     if (!response.ok) {

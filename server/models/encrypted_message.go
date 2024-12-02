@@ -8,27 +8,27 @@ import (
 	"fmt"
 )
 
-type EncryptedMessage struct {
+type ElGamalContent struct {
 	A string `json:"a"`
 	B string `json:"b"`
 	P string `json:"p"`
 }
 
-// Value implementa a interface driver.Valuer para converter EncryptedMessage em JSON
-func (e EncryptedMessage) Value() (driver.Value, error) {
+// Implementa a interface driver.Valuer para converter ElGamalContent em JSON
+func (e ElGamalContent) Value() (driver.Value, error) {
 	return json.Marshal(e)
 }
 
-// Scan implementa a interface sql.Scanner para converter JSON de volta para EncryptedMessage
-func (e *EncryptedMessage) Scan(value interface{}) error {
+// Implementa a interface sql.Scanner para converter JSON de volta para ElGamalContent
+func (e *ElGamalContent) Scan(value interface{}) error {
 	if value == nil {
-		*e = EncryptedMessage{}
+		*e = ElGamalContent{}
 		return nil
 	}
 
 	bytes, ok := value.([]byte)
 	if !ok {
-		return fmt.Errorf("failed to unmarshal EncryptedMessage: unsupported type %T", value)
+		return fmt.Errorf("failed to unmarshal ElGamalContent: unsupported type %T", value)
 	}
 
 	return json.Unmarshal(bytes, e)

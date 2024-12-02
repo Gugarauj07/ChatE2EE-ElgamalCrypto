@@ -28,9 +28,3 @@ type MessageRecipient struct {
 	Message   Message `gorm:"foreignKey:MessageID"`
 	Recipient User    `gorm:"foreignKey:RecipientID"`
 }
-
-type ElGamalContent struct {
-	A string `json:"a"`
-	B string `json:"b"`
-	P string `json:"p"`
-}

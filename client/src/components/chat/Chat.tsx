@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Conversation, Message } from '@/types/chat'
+import { ConversationDetails, ConversationListItem, Message } from '@/types/chat'
 import { conversationService } from '@/services/conversationService'
 import { useToast } from '@/hooks/use-toast'
 import AddContactDialog from '../dialogs/AddContactDialog'
@@ -13,8 +13,8 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function Chat() {
   const { userId } = useAuth()
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [conversations, setConversations] = useState<ConversationListItem[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDetails | null>(null)
   const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
 
@@ -37,11 +37,9 @@ export default function Chat() {
 
   const loadConversationDetails = async (conversationId: string) => {
     try {
-      const { conversation, messages } = await conversationService.getConversation(conversationId)
+      const conversation = await conversationService.getConversation(conversationId)
       setSelectedConversation(conversation)
-      setCurrentMessages(Array.isArray(messages) ? messages : [])
-      console.log('Conversa selecionada:', conversation)
-      console.log('Mensagens carregadas:', messages)
+      setCurrentMessages(conversation.messages || [])
     } catch (error) {
       toast({
         variant: "destructive",
@@ -74,8 +72,13 @@ export default function Chat() {
     if (!selectedConversation) return
 
     try {
-      const newMessage = await conversationService.sendMessage(selectedConversation.id, content)
+      const newMessage = await conversationService.sendMessage(
+        selectedConversation.id,
+        content,
+        selectedConversation.participants
+      )
       setCurrentMessages([...currentMessages, newMessage])
+      await loadConversations()
     } catch (error) {
       toast({
         variant: "destructive",
@@ -118,9 +121,7 @@ export default function Chat() {
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium truncate">
-                        {conversation.type === 'DIRECT' && Array.isArray(conversation.participants)
-                          ? conversation.participants.find(p => p.id !== userId)?.username || 'Usuário Desconhecido'
-                          : conversation.name}
+                        {conversation.name}
                       </span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {conversation.updatedAt ? formatDate(conversation.updatedAt) : ''}

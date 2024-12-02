@@ -8,26 +8,33 @@ export interface Contact {
   }
 }
 
-export interface Conversation {
+// Interface para a listagem de conversas
+export interface ConversationListItem {
   id: string
   type: 'DIRECT' | 'GROUP'
-  name?: string
-  participants: Contact[]
-  unreadCount?: number
+  name: string
+  unreadCount: number
   updatedAt: string
+}
+
+// Interface para os detalhes da conversa
+export interface ConversationDetails {
+  id: string
+  type: 'DIRECT' | 'GROUP'
+  name: string
+  createdAt: string
+  participants: Contact[]
+  messages?: Message[]
 }
 
 export interface Message {
   id: string
-  content: string
   senderId: string
-  sender: Contact
-  conversationId: string
-  timestamp: string
-  status: 'sent' | 'delivered' | 'read'
-  encrypted: {
+  createdAt: string
+  content: {
     a: string
     b: string
     p: string
   }
+  status: 'SENT' | 'DELIVERED' | 'READ'
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Message, Conversation } from '@/types/chat'
+import { Message, ConversationDetails } from '@/types/chat'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDistanceToNow } from 'date-fns'
@@ -7,9 +7,10 @@ import { ptBR } from 'date-fns/locale'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Send } from 'lucide-react'
+import { ElGamal } from '@/utils/elgamal'
 
 interface ChatMessagesProps {
-  conversation: Conversation
+  conversation: ConversationDetails
   messages: Message[]
   onSendMessage: (message: string) => Promise<void>
 }
@@ -17,7 +18,8 @@ interface ChatMessagesProps {
 export default function ChatMessages({ conversation, messages, onSendMessage }: ChatMessagesProps) {
   const [newMessage, setNewMessage] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
-  const { userId } = useAuth()
+  const { userId, privateKey } = useAuth()
+  const elgamal = new ElGamal()
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -52,19 +54,30 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     }
   }
 
+  const getSender = (senderId: string) => {
+    return conversation.participants.find(p => p.id === senderId)
+  }
+
+  const decryptMessageContent = (content: { a: string; b: string; p: string }) => {
+    if (!privateKey) {
+      console.error('Chave privada não disponível para descriptografar a mensagem')
+      return 'Chave privada não disponível'
+    }
+
+    try {
+      return elgamal.decrypt(content, privateKey)
+    } catch (error) {
+      console.error('Erro ao descriptografar mensagem:', error)
+      return 'Erro ao descriptografar'
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="border-b p-4">
         <h2 className="font-semibold">
-          {conversation.type === 'DIRECT'
-            ? conversation.participants.find(p => p.id !== userId)?.username || 'Usuário Desconhecido'
-            : conversation.name}
+          {conversation.name}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {conversation.type === 'GROUP' && (
-            `${conversation.participants.length} participante(s)`
-          )}
-        </p>
       </div>
 
       <div className="flex-1 overflow-hidden relative">
@@ -91,11 +104,13 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
                   >
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium">
-                        {message.sender.username}
+                        {getSender(message.senderId)?.username || 'Usuário Desconhecido'}
                       </span>
-                      <p className="text-sm break-words">{message.content}</p>
+                      <p className="text-sm break-words">
+                        {decryptMessageContent(message.content)}
+                      </p>
                       <span className="text-xs opacity-70">
-                        {formatDate(message.timestamp)}
+                        {formatDate(message.createdAt)}
                       </span>
                     </div>
                   </div>

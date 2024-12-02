@@ -98,17 +98,13 @@ func GetConversation(c *gin.Context) {
 	var conversation models.Conversation
 	query := config.DB.
 		Preload("Participants.User").
-		Where("id = ?", conversationID)
+		Preload("Messages", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("Messages.Recipients", "recipient_id = ?", userID).
+		Preload("Messages.Sender")
 
-	if includeMessages {
-		query = query.
-			Preload("Messages", func(db *gorm.DB) *gorm.DB {
-				return db.Order("created_at DESC")
-			}).
-			Preload("Messages.Recipients", "recipient_id = ?", userID)
-	}
-
-	if err := query.First(&conversation).Error; err != nil {
+	if err := query.First(&conversation, "id = ?", conversationID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversa não encontrada"})
 		return
 	}
@@ -119,6 +115,19 @@ func GetConversation(c *gin.Context) {
 		Type:         conversation.Type,
 		CreatedAt:    conversation.CreatedAt,
 		Participants: make([]models.ParticipantDTO, 0),
+	}
+
+	// Definir o nome da conversa
+	if conversation.Type == "GROUP" {
+		dto.Name = "Grupo"
+	} else {
+		// Para conversas diretas, usar o nome do outro participante
+		for _, p := range conversation.Participants {
+			if p.UserID != userID {
+				dto.Name = p.User.Username
+				break
+			}
+		}
 	}
 
 	// Converter participantes
@@ -149,10 +158,8 @@ func GetConversation(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"conversation": dto,
-		"messages": dto.Messages,
-	})
+	// Retornar apenas o DTO da conversa, que já inclui as mensagens
+	c.JSON(http.StatusOK, dto)
 }
 
 // SendMessage envia uma nova mensagem para uma conversa específica
@@ -164,36 +171,10 @@ func SendMessage(c *gin.Context) {
 	}
 
 	conversationID := c.Param("id")
-	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da conversa é obrigatório"})
-		return
-	}
-
-	// Verificar se o usuário é participante da conversa
-	var participant models.ConversationParticipant
-	if err := config.DB.Where("conversation_id = ? AND user_id = ?", conversationID, userID).First(&participant).Error; err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Usuário não é participante desta conversa"})
-		return
-	}
-
 	var req SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-
-	// Verificar se há conteúdo criptografado para todos os participantes
-	var participants []models.ConversationParticipant
-	if err := config.DB.Where("conversation_id = ?", conversationID).Find(&participants).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar participantes"})
-		return
-	}
-
-	for _, p := range participants {
-		if _, exists := req.EncryptedContents[p.UserID]; !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Conteúdo criptografado faltando para algum participante"})
-			return
-		}
 	}
 
 	// Iniciar transação
@@ -231,15 +212,11 @@ func SendMessage(c *gin.Context) {
 		}
 	}
 
-	// Commit da transação
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar envio da mensagem"})
 		return
 	}
-
-	// Notificar os participantes via WebSocket (opcional)
-	// Implementar lógica de notificação se necessário
 
 	c.JSON(http.StatusCreated, message)
 }
