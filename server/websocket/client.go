@@ -38,6 +38,11 @@ func (c *Client) ReadPump() {
 
         log.Printf("Mensagem recebida: %s", message)
 
+        if err := ProcessMessage(message); err != nil {
+            log.Printf("Erro ao processar mensagem: %v", err)
+            continue
+        }
+
         c.Hub.Broadcast <- BroadcastMessage{
             ConversationID: c.ConversationID,
             Message:        message,

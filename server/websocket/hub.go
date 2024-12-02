@@ -46,7 +46,6 @@ func NewHub() *Hub {
         Broadcast:  make(chan BroadcastMessage),
     }
 }
-
 func (h *Hub) Run() {
     for {
         select {
@@ -57,7 +56,6 @@ func (h *Hub) Run() {
             }
             h.Clients[client.ConversationID][client.ID] = client
             h.mu.Unlock()
-            log.Printf("Cliente %s conectado à conversa %s", client.ID, client.ConversationID)
 
         case client := <-h.Unregister:
             h.mu.Lock()
@@ -65,16 +63,22 @@ func (h *Hub) Run() {
                 if _, ok := clients[client.ID]; ok {
                     delete(clients, client.ID)
                     close(client.Send)
-                    if len(clients) == 0 {
-                        delete(h.Clients, client.ConversationID)
-                    }
                 }
             }
             h.mu.Unlock()
-            log.Printf("Cliente %s desconectado da conversa %s", client.ID, client.ConversationID)
 
-        case message := <-h.Broadcast:
-            h.broadcastMessage(message)
+        case broadcastMsg := <-h.Broadcast:
+            h.mu.RLock()
+            clients := h.Clients[broadcastMsg.ConversationID]
+            for _, client := range clients {
+                select {
+                case client.Send <- broadcastMsg.Message:
+                default:
+                    close(client.Send)
+                    delete(h.Clients[client.ConversationID], client.ID)
+                }
+            }
+            h.mu.RUnlock()
         }
     }
 }
