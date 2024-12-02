@@ -17,13 +17,13 @@ interface ChatMessagesProps {
 
 export default function ChatMessages({ conversation, messages, onSendMessage }: ChatMessagesProps) {
   const [newMessage, setNewMessage] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const { userId, privateKey } = useAuth()
   const elgamal = new ElGamal()
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
 
@@ -78,56 +78,54 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col h-full">
       <div className="border-b p-4">
         <h2 className="font-semibold">
           {conversation.name}
         </h2>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea className="absolute inset-0" ref={scrollRef}>
-          <div className="p-4 space-y-4">
-            {messages.length === 0 ? (
-              <p className="text-center text-muted-foreground">
-                Ainda não há mensagens nesta conversa. Comece uma conversa agora!
-              </p>
-            ) : (
-              messages.map((message, index) => (
+      <ScrollArea className="flex-1" type="always">
+        <div className="p-4 space-y-4 flex flex-col">
+          {messages.length === 0 ? (
+            <p className="text-center text-muted-foreground">
+              Ainda não há mensagens nesta conversa. Comece uma conversa agora!
+            </p>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={message.id || index}
+                className={`flex ${
+                  message.senderId === userId ? 'justify-end' : 'justify-start'
+                }`}
+              >
                 <div
-                  key={message.id || index}
-                  className={`flex ${
-                    message.senderId === userId ? 'justify-end' : 'justify-start'
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    message.senderId === userId
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
                   }`}
                 >
-                  <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      message.senderId === userId
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium">
-                        {getSender(message.senderId)?.username || 'Usuário Desconhecido'}
-                      </span>
-                      <p className="text-sm break-words">
-                        {decryptMessageContent(message)}
-                      </p>
-                      <span className="text-xs opacity-70">
-                        {formatDate(message.createdAt!)}
-                      </span>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">
+                      {getSender(message.senderId)?.username || 'Usuário Desconhecido'}
+                    </span>
+                    <p className="text-sm break-words">
+                      {decryptMessageContent(message)}
+                    </p>
+                    <span className="text-xs opacity-70">
+                      {formatDate(message.createdAt!)}
+                    </span>
                   </div>
                 </div>
-              ))
-            )}
-            <div ref={scrollRef} />
-          </div>
-        </ScrollArea>
-      </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
-      <div className="border-t p-4">
+      <div className="border-t p-4 mt-auto">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             type="text"

@@ -36,19 +36,17 @@ export default function Chat() {
   useEffect(() => {
     if (!selectedConversation) return
 
-    // Conectar ao WebSocket da conversa selecionada com os participantes
     websocketRef.current = new WebSocketService()
     websocketRef.current.connectToConversation(
       selectedConversation.id,
       selectedConversation.participants
     )
 
-    // Registrar handler de mensagens para esta conversa
     const unsubscribe = websocketRef.current.onConversationMessage(
       selectedConversation.id,
       (message) => {
         setCurrentMessages(prev => [...prev, message])
-        loadConversations() // Atualizar lista de conversas
+        loadConversations()
       }
     )
 
@@ -74,8 +72,11 @@ export default function Chat() {
   const loadConversationDetails = async (conversationId: string) => {
     try {
       const conversation = await conversationService.getConversation(conversationId)
+      const sortedMessages = [...(conversation.messages || [])].sort(
+        (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+      )
       setSelectedConversation(conversation)
-      setCurrentMessages(conversation.messages || [])
+      setCurrentMessages(sortedMessages)
     } catch (error) {
       toast({
         variant: "destructive",
