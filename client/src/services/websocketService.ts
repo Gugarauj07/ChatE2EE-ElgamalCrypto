@@ -43,7 +43,8 @@ export class WebSocketService {
               conversationId,
               senderId,
               content: encryptedContents[userId],
-              type: 'received'
+              type: 'received',
+              createdAt: new Date().toISOString()
             }
 
             console.log('Mensagem WebSocket processada:', message)
