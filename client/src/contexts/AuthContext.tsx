@@ -1,55 +1,88 @@
 import { createContext, useContext, useState } from 'react'
 import { PublicKey, PrivateKey } from '@/utils/elgamal'
+import { encryptForLocalStorage, decryptFromLocalStorage } from '@/utils/cryptoUtils'
 
 interface AuthState {
   userId: string | null
   publicKey: PublicKey | null
   privateKey: PrivateKey | null
+  token: string | null
+}
+
+interface AuthContextType extends AuthState {
   setAuthState: (userId: string, publicKey: PublicKey, privateKey: PrivateKey, token: string) => void
   clearAuth: () => void
 }
 
-const AuthContext = createContext<AuthState | null>(null)
+const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [userId, setUserId] = useState<string | null>(() => {
-    const token = localStorage.getItem('token');
-    return token ? localStorage.getItem('userId') : null;
-  });
-  const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
-  const [privateKey, setPrivateKey] = useState<PrivateKey | null>(null);
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    const token = localStorage.getItem('token')
+    const encryptedPrivateKey = localStorage.getItem('encryptedPrivateKeyLocal')
 
-  const setAuthState = (
+    if (token && encryptedPrivateKey) {
+      decryptFromLocalStorage(encryptedPrivateKey)
+        .then(privateKeyStr => {
+          const privateKey = JSON.parse(privateKeyStr) as PrivateKey
+          setAuthState(prev => ({ ...prev, privateKey }))
+        })
+        .catch(console.error)
+    }
+
+    return {
+      userId: localStorage.getItem('userId'),
+      publicKey: JSON.parse(localStorage.getItem('publicKey') || 'null'),
+      privateKey: null,
+      token
+    }
+  })
+
+  const setAuthStateAndPersist = async (
     userId: string,
     publicKey: PublicKey,
     privateKey: PrivateKey,
     token: string
   ) => {
-    setUserId(userId);
-    setPublicKey(publicKey);
-    setPrivateKey(privateKey);
-    localStorage.setItem('token', token);
-    localStorage.setItem('userId', userId);
-  };
+    const encryptedPrivateKeyLocal = await encryptForLocalStorage(
+      JSON.stringify(privateKey)
+    )
+
+    localStorage.setItem('userId', userId)
+    localStorage.setItem('publicKey', JSON.stringify(publicKey))
+    localStorage.setItem('token', token)
+    localStorage.setItem('encryptedPrivateKeyLocal', encryptedPrivateKeyLocal)
+
+    setAuthState({
+      userId,
+      publicKey,
+      privateKey,
+      token
+    })
+  }
 
   const clearAuth = () => {
-    setUserId(null);
-    setPublicKey(null);
-    setPrivateKey(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
-  };
+    localStorage.removeItem('userId')
+    localStorage.removeItem('publicKey')
+    localStorage.removeItem('token')
+    localStorage.removeItem('encryptedPrivateKeyLocal')
+
+    setAuthState({
+      userId: null,
+      publicKey: null,
+      privateKey: null,
+      token: null
+    })
+  }
+
+  const contextValue: AuthContextType = {
+    ...authState,
+    setAuthState: setAuthStateAndPersist,
+    clearAuth
+  }
 
   return (
-    <AuthContext.Provider
-      value={{
-        userId,
-        publicKey,
-        privateKey,
-        setAuthState,
-        clearAuth
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

@@ -58,17 +58,24 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     return conversation.participants.find(p => p.id === senderId)
   }
 
-  const decryptMessageContent = (content: { a: string; b: string; p: string }) => {
-    if (!privateKey) {
-      console.error('Chave privada não disponível para descriptografar a mensagem')
-      return 'Chave privada não disponível'
+  const decryptMessageContent = (message: Message) => {
+    if (!userId || !privateKey) {
+      console.error('Usuário ou chave privada não disponível')
+      return 'Erro ao descriptografar mensagem'
     }
 
     try {
-      return elgamal.decrypt(content, privateKey)
+      const encryptedContent = message.content[userId]
+
+      if (!encryptedContent) {
+        console.error('Conteúdo criptografado não encontrado para o usuário:', userId)
+        return ''
+      }
+
+      return elgamal.decrypt(encryptedContent, privateKey)
     } catch (error) {
       console.error('Erro ao descriptografar mensagem:', error)
-      return 'Erro ao descriptografar'
+      return 'Erro ao descriptografar mensagem'
     }
   }
 
@@ -88,9 +95,9 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
                 Ainda não há mensagens nesta conversa. Comece uma conversa agora!
               </p>
             ) : (
-              messages.map((message) => (
+              messages.map((message, index) => (
                 <div
-                  key={message.id}
+                  key={message.id || index}
                   className={`flex ${
                     message.senderId === userId ? 'justify-end' : 'justify-start'
                   }`}
@@ -107,10 +114,10 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
                         {getSender(message.senderId)?.username || 'Usuário Desconhecido'}
                       </span>
                       <p className="text-sm break-words">
-                        {decryptMessageContent(message.content)}
+                        {decryptMessageContent(message)}
                       </p>
                       <span className="text-xs opacity-70">
-                        {formatDate(message.createdAt)}
+                        {formatDate(message.createdAt!)}
                       </span>
                     </div>
                   </div>

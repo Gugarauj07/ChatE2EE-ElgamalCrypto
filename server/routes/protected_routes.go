@@ -7,7 +7,6 @@ import (
 )
 
 func ProtectedRoutes(router *gin.Engine) {
-	router.GET("/api/ws", controllers.ServeWS)
 	protected := router.Group("/api")
 	protected.Use(middlewares.AuthMiddleware())
 	{

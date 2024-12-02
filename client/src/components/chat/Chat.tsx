@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ConversationDetails, ConversationListItem, Message } from '@/types/chat'
 import { conversationService } from '@/services/conversationService'
@@ -10,17 +10,53 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ChatMessages from './ChatMessages'
 import { useAuth } from '@/contexts/AuthContext'
+import { WebSocketService } from '@/services/websocketService'
+import { ElGamal } from '@/utils/elgamal'
+import { useNavigate } from 'react-router-dom'
 
 export default function Chat() {
-  const { userId } = useAuth()
+  const { userId, token } = useAuth()
+  const navigate = useNavigate()
   const [conversations, setConversations] = useState<ConversationListItem[]>([])
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetails | null>(null)
   const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
+  const websocketRef = useRef<WebSocketService | null>(null)
+  const elgamal = new ElGamal()
 
   useEffect(() => {
+    if (!userId) {
+      navigate('/login')
+      return
+    }
+
     loadConversations()
-  }, [])
+  }, [userId])
+
+  useEffect(() => {
+    if (!selectedConversation) return
+
+    // Conectar ao WebSocket da conversa selecionada com os participantes
+    websocketRef.current = new WebSocketService()
+    websocketRef.current.connectToConversation(
+      selectedConversation.id,
+      selectedConversation.participants
+    )
+
+    // Registrar handler de mensagens para esta conversa
+    const unsubscribe = websocketRef.current.onConversationMessage(
+      selectedConversation.id,
+      (message) => {
+        setCurrentMessages(prev => [...prev, message])
+        loadConversations() // Atualizar lista de conversas
+      }
+    )
+
+    return () => {
+      unsubscribe()
+      websocketRef.current?.disconnectFromConversation(selectedConversation.id)
+    }
+  }, [selectedConversation?.id])
 
   const loadConversations = async () => {
     try {
@@ -69,21 +105,20 @@ export default function Chat() {
   }
 
   const handleSendMessage = async (content: string) => {
-    if (!selectedConversation) return
+    if (!selectedConversation || !userId) return
 
     try {
-      const newMessage = await conversationService.sendMessage(
+      await websocketRef.current?.sendMessage(
         selectedConversation.id,
         content,
-        selectedConversation.participants
+        userId
       )
-      setCurrentMessages([...currentMessages, newMessage])
-      await loadConversations()
     } catch (error) {
+      console.error('Erro ao enviar mensagem:', error)
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível enviar a mensagem"
+        title: "Erro ao enviar mensagem",
+        description: error instanceof Error ? error.message : "Erro desconhecido"
       })
     }
   }

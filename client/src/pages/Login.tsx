@@ -33,12 +33,15 @@ export default function Login() {
       )
 
       // Atualizar o contexto com as informações necessárias
-      setAuthState(
+      await setAuthState(
         response.user.id,
         response.publicKey,
         privateKey,
         response.token
       )
+
+      // Aguardar um tick para garantir que o estado foi atualizado
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       navigate('/')
     } catch (error) {

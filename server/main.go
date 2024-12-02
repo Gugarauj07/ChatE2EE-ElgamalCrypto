@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"server/config"
-	"server/controllers"
+	"server/websocket"
 	"server/routes"
 	"time"
 
@@ -15,32 +15,28 @@ func main() {
 	// Inicializar o banco de dados
 	config.InitDatabase()
 
-	// Iniciar o Hub
-	go controllers.WSHub.Run()
+	// Criar e iniciar o Hub do WebSocket
+	hub := websocket.NewHub()
+	go hub.Run()
 
-	// Configurar as rotas
+	// Configurar o router
 	router := gin.Default()
 
 	// Configurar CORS
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{
-			"Origin",
-			"Content-Type",
-			"Accept",
-			"Authorization",
-			"X-Requested-With",
-		},
-		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		 AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	routes.SetupRoutes(router)
+	// Configurar rotas
+	routes.SetupRoutes(router, hub)
 
 	// Iniciar o servidor
 	if err := router.Run(":8080"); err != nil {
-		log.Fatalf("Falha ao iniciar o servidor: %v", err)
+		log.Fatal("Falha ao iniciar o servidor:", err)
 	}
 }
