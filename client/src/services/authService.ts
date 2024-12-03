@@ -15,7 +15,7 @@ interface AuthResponse {
   encryptedPrivateKey: string
 }
 
-export const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:8080'
+export const API_BASE_URL = "https://chat-backend-559688439091.southamerica-east1.run.app"
 
 export const authService = {
   async register(username: string, password: string) {

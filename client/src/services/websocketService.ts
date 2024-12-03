@@ -17,7 +17,7 @@ export class WebSocketService {
     }
 
     try {
-      const wsUrl = process.env.VITE_WS_URL || 'ws://localhost:8080'
+      const wsUrl = "wss://chat-backend-559688439091.southamerica-east1.run.app"
       const ws = new WebSocket(`${wsUrl}/ws?conversationId=${conversationId}`)
 
       ws.onopen = () => {
