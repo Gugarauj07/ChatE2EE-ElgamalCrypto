@@ -11,8 +11,8 @@ import (
 )
 
 type CreateGroupRequest struct {
-	Name          string   `json:"name" binding:"required"`
-	ParticipantIDs []string `json:"participantIds" binding:"required"`
+	Name           string   `json:"name" binding:"required"`
+	ParticipantIDs []string `json:"participant_ids" binding:"required"`
 }
 
 func CreateGroup(c *gin.Context) {
@@ -26,6 +26,25 @@ func CreateGroup(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Buscar os IDs reais dos contatos
+	var contacts []models.Contact
+	if err := config.DB.Where("user_id = ? AND id IN ?", userID, req.ParticipantIDs).Find(&contacts).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar contatos"})
+		return
+	}
+
+	// Verificar se todos os contatos foram encontrados
+	if len(contacts) != len(req.ParticipantIDs) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Um ou mais contatos não foram encontrados"})
+		return
+	}
+
+	// Extrair os IDs reais dos contatos
+	realParticipantIDs := make([]string, len(contacts))
+	for i, contact := range contacts {
+		realParticipantIDs[i] = contact.ContactID
 	}
 
 	tx := config.DB.Begin()
@@ -55,7 +74,8 @@ func CreateGroup(c *gin.Context) {
 		return
 	}
 
-	allParticipants := append(req.ParticipantIDs, userID)
+	// Adicionar todos os participantes, incluindo o criador do grupo
+	allParticipants := append(realParticipantIDs, userID)
 	for _, pid := range allParticipants {
 		participant := models.ConversationParticipant{
 			ID:             utils.GenerateUUID(),
