@@ -1,8 +1,8 @@
 import { API_BASE_URL } from './authService'
-import { Conversation } from '@/types/chat'
+import { ConversationDetails } from '@/types/chat'
 
 export const groupService = {
-  async createGroup(name: string, participantIds: string[]): Promise<Conversation> {
+  async createGroup(name: string, participantIds: string[]): Promise<ConversationDetails> {
     const response = await fetch(`${API_BASE_URL}/api/groups`, {
       method: 'POST',
       headers: {

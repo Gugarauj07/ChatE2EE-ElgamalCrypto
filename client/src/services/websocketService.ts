@@ -57,22 +57,22 @@ export class WebSocketService {
 
       ws.onerror = (error) => {
         console.error(`Erro no WebSocket para conversa ${conversationId}:`, error)
-        this.handleReconnect(conversationId, participants)
+        this.handleReconnect(conversationId)
       }
 
       ws.onclose = () => {
         console.log(`Conexão WebSocket fechada para conversa ${conversationId}`)
-        this.handleReconnect(conversationId, participants)
+        this.handleReconnect(conversationId)
       }
 
       this.connections.set(conversationId, ws)
     } catch (error) {
       console.error(`Erro ao estabelecer conexão WebSocket para conversa ${conversationId}:`, error)
-      this.handleReconnect(conversationId, participants)
+      this.handleReconnect(conversationId)
     }
   }
 
-  private handleReconnect(conversationId: string, participants: ConversationDetails['participants']) {
+  private handleReconnect(conversationId: string) {
     const attempts = this.reconnectAttempts.get(conversationId) || 0
     if (attempts < this.maxReconnectAttempts) {
       this.reconnectAttempts.set(conversationId, attempts + 1)

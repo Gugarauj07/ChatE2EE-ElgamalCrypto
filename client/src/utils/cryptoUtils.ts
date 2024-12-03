@@ -1,5 +1,4 @@
 import { PrivateKey } from './elgamal';
-import CryptoJS from 'crypto-js';
 
 /**
  * Criptografa a chave privada usando a senha do usuário.

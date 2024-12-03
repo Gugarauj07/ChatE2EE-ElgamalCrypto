@@ -12,9 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Contact } from '@/types/chat'
 import { contactService } from '@/services/contactService'
 import { useToast } from '@/hooks/use-toast'
-import { Search, UserPlus, Loader2, User } from 'lucide-react'
+import { Search, UserPlus, Loader2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
 
 interface AddContactDialogProps {
   onSuccess: () => Promise<void>

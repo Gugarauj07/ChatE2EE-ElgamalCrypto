@@ -11,18 +11,16 @@ import { ptBR } from 'date-fns/locale'
 import ChatMessages from './ChatMessages'
 import { useAuth } from '@/contexts/AuthContext'
 import { WebSocketService } from '@/services/websocketService'
-import { ElGamal } from '@/utils/elgamal'
 import { useNavigate } from 'react-router-dom'
 
 export default function Chat() {
-  const { userId, token } = useAuth()
+  const { userId } = useAuth()
   const navigate = useNavigate()
   const [conversations, setConversations] = useState<ConversationListItem[]>([])
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetails | null>(null)
   const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
   const websocketRef = useRef<WebSocketService | null>(null)
-  const elgamal = new ElGamal()
 
   useEffect(() => {
     if (!userId) {
