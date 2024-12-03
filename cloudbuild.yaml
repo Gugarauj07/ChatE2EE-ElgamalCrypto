@@ -1,0 +1,60 @@
+steps:
+  # Build e push da imagem do backend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/chat-backend', './server']
+    id: 'build-backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/chat-backend']
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Build e push da imagem do frontend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/chat-frontend', './client']
+    id: 'build-frontend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/chat-frontend']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Deploy do backend no Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'chat-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/chat-backend'
+      - '--region'
+      - 'southamerica-east1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+    waitFor: ['push-backend']
+
+  # Deploy do frontend no Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'chat-frontend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/chat-frontend'
+      - '--region'
+      - 'southamerica-east1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+    waitFor: ['push-frontend']
+
+images:
+  - 'gcr.io/$PROJECT_ID/chat-backend'
+  - 'gcr.io/$PROJECT_ID/chat-frontend'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
