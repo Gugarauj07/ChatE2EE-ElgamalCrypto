@@ -33,6 +33,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--timeout'
+      - '300s'
     waitFor: ['push-backend']
 
   # Deploy do frontend no Cloud Run
@@ -50,9 +52,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--port'
-      - '8080'
-      - '--set-env-vars'
-      - 'PORT=8080'
+      - '80'
     waitFor: ['push-frontend']
 
 images:

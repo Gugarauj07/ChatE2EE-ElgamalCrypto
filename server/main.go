@@ -2,13 +2,14 @@ package main
 
 import (
 	"log"
+	"os"
 	"server/config"
-	"server/websocket"
 	"server/routes"
+	"server/websocket"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -38,8 +39,14 @@ func main() {
 	// Configurar rotas
 	routes.SetupRoutes(router, hub)
 
-	// Iniciar o servidor
-	if err := router.Run(":8080"); err != nil {
+	// Ler a porta a partir da variável de ambiente
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Iniciar o servidor na porta especificada
+	if err := router.Run(":" + port); err != nil {
 		log.Fatal("Falha ao iniciar o servidor:", err)
 	}
 }
