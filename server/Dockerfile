@@ -1,24 +1,20 @@
 FROM golang:1.21-alpine
 
-WORKDIR /app
-
-# Instalar dependências do sistema
+# Instalar dependências para CGO e go-sqlite3
 RUN apk add --no-cache gcc musl-dev
 
-# Copiar go.mod e go.sum
-COPY go.mod go.sum ./
+WORKDIR /app
 
-# Baixar dependências
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copiar código fonte
 COPY . .
 
-# Compilar a aplicação
+# Habilitar CGO durante a compilação
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV GOARCH=amd64
+
 RUN go build -o main .
 
-# Expor porta
-EXPOSE 8080
-
-# Comando para executar
 CMD ["./main"]
