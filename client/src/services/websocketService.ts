@@ -17,7 +17,8 @@ export class WebSocketService {
     }
 
     try {
-      const ws = new WebSocket(`ws://localhost:8080/ws?conversationId=${conversationId}`)
+      const wsUrl = process.env.VITE_WS_URL || 'ws://localhost:8080'
+      const ws = new WebSocket(`${wsUrl}/ws?conversationId=${conversationId}`)
 
       ws.onopen = () => {
         console.log(`Conexão WebSocket estabelecida para conversa ${conversationId}`)
