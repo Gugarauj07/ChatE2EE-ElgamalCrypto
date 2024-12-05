@@ -3,12 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { authService } from '@/services/authService'
@@ -54,46 +48,39 @@ export default function Login() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-1">
-        <h2 className="text-2xl font-bold text-center">Login</h2>
-        <p className="text-sm text-muted-foreground text-center">
-          Entre com suas credenciais para acessar sua conta
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              type="text"
-              placeholder="seu_username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            Entrar
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <Button variant="link" onClick={() => navigate('/register')}>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <Label htmlFor="username" className="block text-white text-sm font-medium mb-1">Username</Label>
+        <Input
+          id="username"
+          type="text"
+          placeholder="seu_username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded-md focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+        />
+      </div>
+      <div>
+        <Label htmlFor="password" className="block text-white text-sm font-medium mb-1">Senha</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded-md focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+        />
+      </div>
+      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition duration-200">
+        Entrar
+      </Button>
+      <div className="text-center">
+        <Button variant="link" onClick={() => navigate('/register')} className="text-white underline">
           Não tem uma conta? Registre-se
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </form>
   )
 }
