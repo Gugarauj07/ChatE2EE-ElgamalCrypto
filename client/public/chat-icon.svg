@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Balão de chat principal -->
+    <path d="M12 21a9 9 0 1 0-9-9c0 1.488.36 2.891 1 4.127L3 21l4.873-1c1.236.64 2.64 1 4.127 1z"
+          fill="url(#gradient)" stroke="url(#gradient)"/>
+
+    <!-- Símbolo de cadeado -->
+    <g transform="translate(7.5,7.5)" stroke="#ffffff">
+      <rect x="0.5" y="2" width="8" height="6" rx="1"/>
+      <path d="M2.5 2v-1a2.5 2.5 0 0 1 5 0v1"/>
+    </g>
+
+    <!-- Linhas de mensagem decorativas -->
+    <g stroke="#ffffff" opacity="0.8">
+      <line x1="7" y1="12" x2="11" y2="12" transform="rotate(-10, 9, 12)"/>
+      <line x1="8" y1="14" x2="13" y2="14" transform="rotate(-10, 10.5, 14)"/>
+    </g>
+  </g>
+</svg>
