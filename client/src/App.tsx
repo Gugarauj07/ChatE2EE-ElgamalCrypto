@@ -22,6 +22,7 @@ function App() {
               <Route path="/" element={<Chat />} />
             </Route>
           </Route>
+          <Route path="*" element={<Login />} />
         </Routes>
         <Toaster />
       </BrowserRouter>

@@ -1,6 +1,7 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { PublicKey, PrivateKey } from '@/utils/elgamal'
 import { encryptForLocalStorage, decryptFromLocalStorage } from '@/utils/cryptoUtils'
+import { useClerk, useUser } from '@clerk/clerk-react'
 
 interface AuthState {
   userId: string | null
@@ -17,6 +18,8 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { signOut } = useClerk()
+  const { user } = useUser()
   const [authState, setAuthState] = useState<AuthState>(() => {
     const token = localStorage.getItem('token')
     const encryptedPrivateKey = localStorage.getItem('encryptedPrivateKeyLocal')
@@ -37,6 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token
     }
   })
+
+  // Sincronizar com o estado do Clerk
+  useEffect(() => {
+    if (!user) {
+      clearAuth()
+    }
+  }, [user])
 
   const setAuthStateAndPersist = async (
     userId: string,
@@ -61,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
-  const clearAuth = () => {
+  const clearAuth = async () => {
     localStorage.removeItem('userId')
     localStorage.removeItem('publicKey')
     localStorage.removeItem('token')
@@ -73,6 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       privateKey: null,
       token: null
     })
+
+    // Fazer logout também no Clerk
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Erro ao fazer logout no Clerk:', error)
+    }
   }
 
   const contextValue: AuthContextType = {

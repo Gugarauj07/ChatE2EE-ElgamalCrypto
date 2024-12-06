@@ -20,45 +20,14 @@ export default function AuthLayout() {
     })
   }, [])
 
-  const particlesLoaded = async (container?: Container): Promise<void> => {
-    console.log(container)
-  }
-
   const options: ISourceOptions = useMemo(
     () => ({
       background: {
         color: {
-          value: "#0a0a0a",
+          value: "#000000",
         },
       },
-      fpsLimit: 60,
-      interactivity: {
-        events: {
-          onClick: {
-            enable: true,
-            mode: "push",
-          },
-          onHover: {
-            enable: true,
-            mode: "bubble",
-          },
-        },
-        modes: {
-          push: {
-            quantity: 4,
-          },
-          bubble: {
-            distance: 200,
-            duration: 2,
-            size: 10,
-            opacity: 0.8,
-          },
-          repulse: {
-            distance: 100,
-            duration: 0.4,
-          },
-        },
-      },
+      fpsLimit: 120,
       particles: {
         color: {
           value: "#ffffff",
@@ -67,7 +36,7 @@ export default function AuthLayout() {
           color: "#ffffff",
           distance: 150,
           enable: true,
-          opacity: 0.5,
+          opacity: 0.2,
           width: 1,
         },
         move: {
@@ -77,23 +46,24 @@ export default function AuthLayout() {
             default: OutMode.bounce,
           },
           random: false,
-          speed: 2,
+          speed: 1,
           straight: false,
         },
         number: {
           density: {
             enable: true,
+            area: 800,
           },
           value: 80,
         },
         opacity: {
-          value: 0.5,
+          value: 0.2,
         },
         shape: {
           type: "circle",
         },
         size: {
-          value: { min: 1, max: 5 },
+          value: { min: 1, max: 3 },
         },
       },
       detectRetina: true,
@@ -101,25 +71,25 @@ export default function AuthLayout() {
     [],
   )
 
-  if (init) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center p-4">
-        <Particles
-          id="tsparticles"
-          particlesLoaded={particlesLoaded}
-          options={options}
-          className="absolute top-0 left-0 w-full h-full z-0"
-        />
-        <div className="relative z-10 w-full max-w-md bg-white bg-opacity-10 backdrop-filter backdrop-blur-md rounded-lg shadow-lg p-6">
-          <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold text-white mb-2">Chat E2E</h1>
-            <p className="text-white/80">Mensagens seguras com criptografia ElGamal</p>
-          </div>
+  if (!init) return null
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Particles
+        id="tsparticles"
+        options={options}
+        className="absolute inset-0"
+      />
+      <div className="container relative z-10 mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          <h1 className="text-4xl font-bold text-center text-white mb-8">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+              Chat E2E
+            </span>
+          </h1>
           <Outlet />
         </div>
       </div>
-    )
-  }
-
-  return <></>
+    </div>
+  )
 }
