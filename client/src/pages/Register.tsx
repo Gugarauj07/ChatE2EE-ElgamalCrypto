@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -14,6 +14,11 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card'
+import { EncryptedLoading } from '@/components/ui/encrypted-loading'
+
+interface AuthLayoutContext {
+  onClerkError: (error: any) => void
+}
 
 export default function Register() {
   const { isLoaded, signUp, setActive } = useSignUp()
@@ -27,6 +32,8 @@ export default function Register() {
   const { setAuthState } = useAuth()
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
   const [usernameErrors, setUsernameErrors] = useState<string[]>([])
+  const { onClerkError } = useOutletContext<AuthLayoutContext>()
+  const [isLoading, setIsLoading] = useState(false)
 
   // Adicionar função de validação de senha
   const validatePassword = (password: string) => {
@@ -63,25 +70,37 @@ export default function Register() {
   // Primeiro passo: Registro no Clerk
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isLoaded) return
+    if (!isLoaded || isLoading) return
 
     try {
+      setIsLoading(true)
+      // Validar senha e username antes de prosseguir
+      const passwordErrs = validatePassword(password)
+      const usernameErrs = validateUsername(username)
+
+      if (passwordErrs.length > 0 || usernameErrs.length > 0) {
+        setPasswordErrors(passwordErrs)
+        setUsernameErrors(usernameErrs)
+        return
+      }
+
       // Iniciar processo de signup no Clerk
-      await signUp.create({
+      const signUpAttempt = await signUp.create({
         emailAddress,
         username,
         password,
       })
 
-      // Iniciar verificação de email
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
-      setPendingVerification(true)
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro no registro",
-        description: "Não foi possível criar sua conta. Tente novamente."
-      })
+      if (signUpAttempt.status === "complete") {
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
+        setPendingVerification(true)
+      } else {
+        throw new Error("Erro no processo de registro")
+      }
+    } catch (error: any) {
+      onClerkError(error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -133,6 +152,16 @@ export default function Register() {
         description: "Código inválido ou erro ao gerar chaves."
       })
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
+        <CardContent>
+          <EncryptedLoading text="Registrando" />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -189,7 +218,7 @@ export default function Register() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="•••••"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

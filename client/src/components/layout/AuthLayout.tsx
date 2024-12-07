@@ -3,9 +3,23 @@ import { useEffect, useMemo, useState } from "react"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { type ISourceOptions } from "@tsparticles/engine"
 import { loadSlim } from "@tsparticles/slim"
+import { useToast } from '@/hooks/use-toast'
 
 export default function AuthLayout() {
+  const { toast } = useToast()
   const [init, setInit] = useState(false)
+
+  const handleClerkError = (error: any) => {
+    if (error.errors) {
+      error.errors.forEach((err: any) => {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: err.message || "Ocorreu um erro inesperado"
+        })
+      })
+    }
+  }
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
@@ -127,7 +141,7 @@ export default function AuthLayout() {
               Chat E2E
             </span>
           </h1>
-          <Outlet />
+          <Outlet context={{ onClerkError: handleClerkError }} />
         </div>
       </div>
     </div>
