@@ -22,10 +22,23 @@ export default function Login() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { setAuthState } = useAuth()
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isLoaded) return
+
+    // Verificar se está bloqueado
+    if (lockoutUntil && new Date() < lockoutUntil) {
+      const timeLeft = Math.ceil((lockoutUntil.getTime() - new Date().getTime()) / 1000);
+      toast({
+        variant: "destructive",
+        title: "Conta temporariamente bloqueada",
+        description: `Tente novamente em ${timeLeft} segundos`
+      });
+      return;
+    }
 
     try {
       // Autenticar com Clerk
@@ -60,6 +73,16 @@ export default function Login() {
         throw new Error("Erro na autenticação")
       }
     } catch (error) {
+      setLoginAttempts(prev => prev + 1);
+
+      // Após 5 tentativas, bloquear por 5 minutos
+      if (loginAttempts >= 4) {
+        const lockoutTime = new Date();
+        lockoutTime.setMinutes(lockoutTime.getMinutes() + 5);
+        setLockoutUntil(lockoutTime);
+        setLoginAttempts(0);
+      }
+
       toast({
         variant: "destructive",
         title: "Erro ao fazer login",
@@ -73,16 +96,16 @@ export default function Login() {
   }
 
   return (
-    <Card className="bg-black/40 backdrop-blur-sm border-gray-800">
-      <CardHeader>
-        <h2 className="text-2xl font-semibold text-center text-white">
+    <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
+      <CardHeader className="space-y-1 pb-2">
+        <h2 className="text-2xl font-bold text-center text-white">
           Entrar
         </h2>
-        <p className="text-gray-400 text-center">
+        <p className="text-sm text-gray-400 text-center">
           Digite suas credenciais para acessar sua conta
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pb-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-gray-200">Email</Label>
@@ -93,7 +116,7 @@ export default function Login() {
               value={emailAddress}
               onChange={(e) => setEmailAddress(e.target.value)}
               required
-              className="bg-gray-900/50 border-gray-700 text-white"
+              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
           <div className="space-y-2">
@@ -105,15 +128,18 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-gray-900/50 border-gray-700 text-white"
+              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+          >
             Entrar
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex justify-center border-t border-gray-800 pt-4">
         <Button
           variant="link"
           onClick={() => navigate('/register')}

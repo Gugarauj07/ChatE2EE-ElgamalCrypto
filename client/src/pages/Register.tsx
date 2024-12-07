@@ -18,12 +18,47 @@ import {
 export default function Register() {
   const { isLoaded, signUp, setActive } = useSignUp()
   const [emailAddress, setEmailAddress] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [pendingVerification, setPendingVerification] = useState(false)
   const [code, setCode] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
   const { setAuthState } = useAuth()
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([])
+  const [usernameErrors, setUsernameErrors] = useState<string[]>([])
+
+  // Adicionar função de validação de senha
+  const validatePassword = (password: string) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    const errors = [];
+    if (password.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`);
+    if (!hasUpperCase) errors.push("Uma letra maiúscula");
+    if (!hasLowerCase) errors.push("Uma letra minúscula");
+    if (!hasNumbers) errors.push("Um número");
+    if (!hasSpecialChar) errors.push("Um caractere especial");
+
+    return errors;
+  };
+
+  // Adicionar função de validação de username
+  const validateUsername = (username: string) => {
+    const minLength = 3;
+    const maxLength = 20;
+    const validFormat = /^[a-zA-Z0-9_]+$/.test(username);
+
+    const errors = [];
+    if (username.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`);
+    if (username.length > maxLength) errors.push(`Máximo de ${maxLength} caracteres`);
+    if (!validFormat) errors.push("Apenas letras, números e underscore");
+
+    return errors;
+  };
 
   // Primeiro passo: Registro no Clerk
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +69,7 @@ export default function Register() {
       // Iniciar processo de signup no Clerk
       await signUp.create({
         emailAddress,
+        username,
         password,
       })
 
@@ -65,7 +101,7 @@ export default function Register() {
       }
 
       // Após verificação bem sucedida, gerar chaves ElGamal
-      const response = await authService.register(emailAddress, password)
+      const response = await authService.register(emailAddress, username, password)
 
       // Descriptografar a chave privada
       const privateKey = await decryptPrivateKey(
@@ -125,16 +161,53 @@ export default function Register() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="username" className="text-gray-200">Nome de usuário</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="seu_username"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setUsernameErrors(validateUsername(e.target.value));
+                }}
+                required
+                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
+              />
+              {usernameErrors.length > 0 && (
+                <div className="text-sm text-red-400 mt-2">
+                  <ul className="list-disc list-inside">
+                    {usernameErrors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="password" className="text-gray-200">Senha</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordErrors(validatePassword(e.target.value));
+                }}
                 required
                 className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
               />
+              {passwordErrors.length > 0 && (
+                <div className="text-sm text-red-400 mt-2">
+                  <p>A senha deve conter:</p>
+                  <ul className="list-disc list-inside">
+                    {passwordErrors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <Button
               type="submit"
@@ -152,7 +225,7 @@ export default function Register() {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required
-                className="bg-gray-800 text-white border border-gray-700"
+                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">

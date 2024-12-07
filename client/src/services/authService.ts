@@ -18,7 +18,7 @@ interface AuthResponse {
 export const API_BASE_URL = import.meta.env.VITE_API_URL as string || "https://localhost:8080";
 
 export const authService = {
-  async register(username: string, password: string) {
+  async register(email: string, username: string, password: string) {
     // Gerar par de chaves ElGamal
     const elgamal = new ElGamal()
     const { publicKey, privateKey } = elgamal
@@ -30,6 +30,7 @@ export const authService = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        email,
         username,
         password,
         publicKey,

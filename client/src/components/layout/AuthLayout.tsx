@@ -1,12 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { useEffect, useMemo, useState } from "react"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
-import {
-  type Container,
-  type ISourceOptions,
-  MoveDirection,
-  OutMode,
-} from "@tsparticles/engine"
+import { type ISourceOptions } from "@tsparticles/engine"
 import { loadSlim } from "@tsparticles/slim"
 
 export default function AuthLayout() {
@@ -23,11 +18,8 @@ export default function AuthLayout() {
   const options: ISourceOptions = useMemo(
     () => ({
       background: {
-        color: {
-          value: "#000000",
-        },
+        color: "#000",
       },
-      fpsLimit: 120,
       particles: {
         color: {
           value: "#ffffff",
@@ -36,34 +28,82 @@ export default function AuthLayout() {
           color: "#ffffff",
           distance: 150,
           enable: true,
-          opacity: 0.2,
+          opacity: 0.4,
           width: 1,
         },
         move: {
-          direction: MoveDirection.none,
           enable: true,
-          outModes: {
-            default: OutMode.bounce,
-          },
-          random: false,
-          speed: 1,
+          speed: 1.5,
+          direction: "none",
+          random: true,
           straight: false,
+          outModes: "bounce",
+          attract: {
+            enable: true,
+            rotateX: 600,
+            rotateY: 1200,
+          },
         },
         number: {
+          value: 120,
           density: {
             enable: true,
-            area: 800,
+            area: 900,
           },
-          value: 80,
         },
         opacity: {
-          value: 0.2,
-        },
-        shape: {
-          type: "circle",
+          value: { min: 0.4, max: 0.7 },
+          animation: {
+            enable: true,
+            speed: 0.5,
+            minimumValue: 0.4,
+          },
         },
         size: {
-          value: { min: 1, max: 3 },
+          value: { min: 1, max: 2 },
+          animation: {
+            enable: true,
+            speed: 1,
+            minimumValue: 1,
+          },
+        },
+      },
+      interactivity: {
+        events: {
+          onHover: {
+            enable: true,
+            mode: ["grab", "bubble"],
+            parallax: {
+              enable: true,
+              force: 80,
+              smooth: 10,
+            },
+          },
+          onClick: {
+            enable: true,
+            mode: "push",
+          },
+        },
+        modes: {
+          grab: {
+            distance: 250,
+            links: {
+              opacity: 0.7,
+              color: "#4f46e5",
+            },
+          },
+          bubble: {
+            distance: 200,
+            size: 7,
+            duration: 2,
+            opacity: 0.8,
+          },
+          push: {
+            quantity: 6,
+          },
+          repulse: {
+            distance: 200,
+          },
         },
       },
       detectRetina: true,
@@ -83,7 +123,7 @@ export default function AuthLayout() {
       <div className="container relative z-10 mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
           <h1 className="text-4xl font-bold text-center text-white mb-8">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
               Chat E2E
             </span>
           </h1>
