@@ -18,7 +18,7 @@ interface AuthResponse {
 export const API_BASE_URL = import.meta.env.VITE_API_URL as string || "https://localhost:8080";
 
 export const authService = {
-  async register(email: string, username: string, password: string) {
+  async register(username: string, password: string) {
     // Gerar par de chaves ElGamal
     const elgamal = new ElGamal()
     const { publicKey, privateKey } = elgamal
@@ -30,7 +30,6 @@ export const authService = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email,
         username,
         password,
         publicKey,
@@ -60,21 +59,5 @@ export const authService = {
 
     const data = await response.json() as AuthResponse
     return data
-  },
-
-  // Adicionando a função verifyEmail
-  async verifyEmail(email: string, code: string) {
-    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code })
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Erro na verificação do email')
-    }
-
-    return await response.json() as AuthResponse
   }
 }

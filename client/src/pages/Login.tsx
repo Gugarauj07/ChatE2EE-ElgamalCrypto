@@ -16,7 +16,7 @@ import {
 import { EncryptedLoading } from '@/components/ui/encrypted-loading'
 
 export default function Login() {
-  const [emailAddress, setEmailAddress] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -42,7 +42,7 @@ export default function Login() {
     try {
       setIsLoading(true)
       // Autenticar com o backend personalizado
-      const response = await authService.login(emailAddress, password)
+      const response = await authService.login(username, password)
 
       // Descriptografar a chave privada
       const privateKey = await decryptPrivateKey(
@@ -103,13 +103,13 @@ export default function Login() {
       <CardContent className="pb-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-200">Email</Label>
+            <Label htmlFor="username" className="text-gray-200">Usuário</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="seu@email.com"
-              value={emailAddress}
-              onChange={(e) => setEmailAddress(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="seu_username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
             />
