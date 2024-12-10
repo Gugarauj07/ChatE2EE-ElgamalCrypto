@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { authService } from '@/services/authService'
 import { decryptPrivateKey } from '@/utils/cryptoUtils'
-import { useSignUp } from '@clerk/clerk-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Card,
   CardHeader,
@@ -16,12 +15,7 @@ import {
 } from '@/components/ui/card'
 import { EncryptedLoading } from '@/components/ui/encrypted-loading'
 
-interface AuthLayoutContext {
-  onClerkError: (error: any) => void
-}
-
 export default function Register() {
-  const { isLoaded, signUp, setActive } = useSignUp()
   const [emailAddress, setEmailAddress] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -32,45 +26,44 @@ export default function Register() {
   const { setAuthState } = useAuth()
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
   const [usernameErrors, setUsernameErrors] = useState<string[]>([])
-  const { onClerkError } = useOutletContext<AuthLayoutContext>()
   const [isLoading, setIsLoading] = useState(false)
 
-  // Adicionar função de validação de senha
+  // Função de validação de senha
   const validatePassword = (password: string) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const minLength = 8
+    const hasUpperCase = /[A-Z]/.test(password)
+    const hasLowerCase = /[a-z]/.test(password)
+    const hasNumbers = /\d/.test(password)
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password)
 
-    const errors = [];
-    if (password.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`);
-    if (!hasUpperCase) errors.push("Uma letra maiúscula");
-    if (!hasLowerCase) errors.push("Uma letra minúscula");
-    if (!hasNumbers) errors.push("Um número");
-    if (!hasSpecialChar) errors.push("Um caractere especial");
+    const errors = []
+    if (password.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`)
+    if (!hasUpperCase) errors.push("Uma letra maiúscula")
+    if (!hasLowerCase) errors.push("Uma letra minúscula")
+    if (!hasNumbers) errors.push("Um número")
+    if (!hasSpecialChar) errors.push("Um caractere especial")
 
-    return errors;
-  };
+    return errors
+  }
 
-  // Adicionar função de validação de username
+  // Função de validação de username
   const validateUsername = (username: string) => {
-    const minLength = 3;
-    const maxLength = 20;
-    const validFormat = /^[a-zA-Z0-9_]+$/.test(username);
+    const minLength = 3
+    const maxLength = 20
+    const validFormat = /^[a-zA-Z0-9_]+$/.test(username)
 
-    const errors = [];
-    if (username.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`);
-    if (username.length > maxLength) errors.push(`Máximo de ${maxLength} caracteres`);
-    if (!validFormat) errors.push("Apenas letras, números e underscore");
+    const errors = []
+    if (username.length < minLength) errors.push(`Mínimo de ${minLength} caracteres`)
+    if (username.length > maxLength) errors.push(`Máximo de ${maxLength} caracteres`)
+    if (!validFormat) errors.push("Apenas letras, números e underscore")
 
-    return errors;
-  };
+    return errors
+  }
 
-  // Primeiro passo: Registro no Clerk
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Função de registro
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isLoaded || isLoading) return
+    if (isLoading) return
 
     try {
       setIsLoading(true)
@@ -84,43 +77,35 @@ export default function Register() {
         return
       }
 
-      // Iniciar processo de signup no Clerk
-      const signUpAttempt = await signUp.create({
-        emailAddress,
-        username,
-        password,
-      })
+      // Registrar via backend personalizado
+      const response = await authService.register(emailAddress, username, password)
 
-      if (signUpAttempt.status === "complete") {
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
-        setPendingVerification(true)
-      } else {
-        throw new Error("Erro no processo de registro")
-      }
+      // Se seu backend requer verificação de email, ajuste a lógica aqui
+      setPendingVerification(true)
+      toast({
+        title: "Registro realizado com sucesso!",
+        description: "Um código de verificação foi enviado para seu email."
+      })
     } catch (error: any) {
-      onClerkError(error)
+      toast({
+        variant: "destructive",
+        title: "Erro no registro",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde."
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Segundo passo: Verificação e geração das chaves ElGamal
-  const onPressVerify = async (e: React.FormEvent) => {
+  // Função de verificação de email (se aplicável)
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isLoaded) return
+    if (isLoading) return
 
     try {
-      // Verificar código de email
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code,
-      })
-
-      if (completeSignUp.status !== "complete") {
-        throw new Error("Erro na verificação do email")
-      }
-
-      // Após verificação bem sucedida, gerar chaves ElGamal
-      const response = await authService.register(emailAddress, username, password)
+      setIsLoading(true)
+      // Verificar o código de verificação com o backend
+      const response = await authService.verifyEmail(emailAddress, code)
 
       // Descriptografar a chave privada
       const privateKey = await decryptPrivateKey(
@@ -136,21 +121,20 @@ export default function Register() {
         response.token
       )
 
-      // Ativar a sessão no Clerk
-      await setActive({ session: completeSignUp.createdSessionId })
-
       toast({
-        title: "Registro realizado com sucesso!",
+        title: "Registro completo!",
         description: "Bem-vindo ao Chat E2E"
       })
 
       navigate('/')
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Erro na verificação",
-        description: "Código inválido ou erro ao gerar chaves."
+        description: error instanceof Error ? error.message : "Código inválido ou erro ao verificar."
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -158,7 +142,7 @@ export default function Register() {
     return (
       <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
         <CardContent>
-          <EncryptedLoading text="Registrando" />
+          <EncryptedLoading text={pendingVerification ? "Verificando Email" : "Registrando"} />
         </CardContent>
       </Card>
     )
@@ -176,7 +160,7 @@ export default function Register() {
       </CardHeader>
       <CardContent className="pb-4">
         {!pendingVerification ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-gray-200">Email</Label>
               <Input
@@ -197,8 +181,8 @@ export default function Register() {
                 placeholder="seu_username"
                 value={username}
                 onChange={(e) => {
-                  setUsername(e.target.value);
-                  setUsernameErrors(validateUsername(e.target.value));
+                  setUsername(e.target.value)
+                  setUsernameErrors(validateUsername(e.target.value))
                 }}
                 required
                 className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
@@ -218,11 +202,11 @@ export default function Register() {
               <Input
                 id="password"
                 type="password"
-                placeholder="•••••"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPasswordErrors(validatePassword(e.target.value));
+                  setPassword(e.target.value)
+                  setPasswordErrors(validatePassword(e.target.value))
                 }}
                 required
                 className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
@@ -241,12 +225,13 @@ export default function Register() {
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+              disabled={isLoading}
             >
-              Criar conta
+              {isLoading ? "Registrando..." : "Criar conta"}
             </Button>
           </form>
         ) : (
-          <form onSubmit={onPressVerify} className="space-y-4">
+          <form onSubmit={handleVerify} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="code" className="text-white">Código de Verificação</Label>
               <Input

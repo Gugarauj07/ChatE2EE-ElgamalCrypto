@@ -7,80 +7,67 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { authService } from '@/services/authService'
 import { decryptPrivateKey } from '@/utils/cryptoUtils'
-import { useSignIn } from '@clerk/clerk-react'
 import {
   Card,
   CardHeader,
   CardContent,
   CardFooter,
 } from '@/components/ui/card'
+import { EncryptedLoading } from '@/components/ui/encrypted-loading'
 
 export default function Login() {
-  const { isLoaded, signIn, setActive } = useSignIn()
   const [emailAddress, setEmailAddress] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
   const { setAuthState } = useAuth()
-  const [loginAttempts, setLoginAttempts] = useState(0);
-  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
+  const [loginAttempts, setLoginAttempts] = useState(0)
+  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isLoaded) return
 
     // Verificar se está bloqueado
     if (lockoutUntil && new Date() < lockoutUntil) {
-      const timeLeft = Math.ceil((lockoutUntil.getTime() - new Date().getTime()) / 1000);
+      const timeLeft = Math.ceil((lockoutUntil.getTime() - new Date().getTime()) / 1000)
       toast({
         variant: "destructive",
         title: "Conta temporariamente bloqueada",
         description: `Tente novamente em ${timeLeft} segundos`
-      });
-      return;
+      })
+      return
     }
 
     try {
-      // Autenticar com Clerk
-      const result = await signIn.create({
-        identifier: emailAddress,
-        password,
-      })
+      setIsLoading(true)
+      // Autenticar com o backend personalizado
+      const response = await authService.login(emailAddress, password)
 
-      if (result.status === "complete") {
-        // Após autenticação bem sucedida no Clerk, buscar dados do nosso backend
-        const response = await authService.login(emailAddress, password)
+      // Descriptografar a chave privada
+      const privateKey = await decryptPrivateKey(
+        response.encryptedPrivateKey,
+        password
+      )
 
-        // Descriptografar a chave privada
-        const privateKey = await decryptPrivateKey(
-          response.encryptedPrivateKey,
-          password
-        )
+      // Atualizar o contexto com as informações necessárias
+      await setAuthState(
+        response.user.id,
+        response.publicKey,
+        privateKey,
+        response.token
+      )
 
-        // Atualizar o contexto com as informações necessárias
-        await setAuthState(
-          response.user.id,
-          response.publicKey,
-          privateKey,
-          response.token
-        )
-
-        // Ativar a sessão no Clerk
-        await setActive({ session: result.createdSessionId })
-
-        navigate('/')
-      } else {
-        throw new Error("Erro na autenticação")
-      }
-    } catch (error) {
-      setLoginAttempts(prev => prev + 1);
+      navigate('/')
+    } catch (error: any) {
+      setLoginAttempts(prev => prev + 1)
 
       // Após 5 tentativas, bloquear por 5 minutos
       if (loginAttempts >= 4) {
-        const lockoutTime = new Date();
-        lockoutTime.setMinutes(lockoutTime.getMinutes() + 5);
-        setLockoutUntil(lockoutTime);
-        setLoginAttempts(0);
+        const lockoutTime = new Date()
+        lockoutTime.setMinutes(lockoutTime.getMinutes() + 5)
+        setLockoutUntil(lockoutTime)
+        setLoginAttempts(0)
       }
 
       toast({
@@ -88,11 +75,19 @@ export default function Login() {
         title: "Erro ao fazer login",
         description: error instanceof Error ? error.message : "Verifique suas credenciais e tente novamente."
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  if (!isLoaded) {
-    return null
+  if (isLoading) {
+    return (
+      <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
+        <CardContent>
+          <EncryptedLoading text="Entrando" />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -134,8 +129,9 @@ export default function Login() {
           <Button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+            disabled={isLoading}
           >
-            Entrar
+            {isLoading ? "Entrando..." : "Entrar"}
           </Button>
         </form>
       </CardContent>

@@ -9,6 +9,5 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />
   }
 
-  // Se houver userId, renderiza o componente filho
   return <Outlet />
 }
