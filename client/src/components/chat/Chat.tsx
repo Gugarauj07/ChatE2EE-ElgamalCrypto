@@ -12,6 +12,7 @@ import ChatMessages from './ChatMessages'
 import { useAuth } from '@/contexts/AuthContext'
 import { WebSocketService } from '@/services/websocketService'
 import { useNavigate } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 
 export default function Chat() {
   const { userId } = useAuth()
@@ -27,7 +28,6 @@ export default function Chat() {
       navigate('/login')
       return
     }
-
     loadConversations()
   }, [userId])
 
@@ -43,7 +43,7 @@ export default function Chat() {
     const unsubscribe = websocketRef.current.onConversationMessage(
       selectedConversation.id,
       (message) => {
-        setCurrentMessages(prev => [...prev, message])
+        setCurrentMessages((prev) => [...prev, message])
         loadConversations()
       }
     )
@@ -91,9 +91,7 @@ export default function Chat() {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString)
-      if (isNaN(date.getTime())) {
-        return ''
-      }
+      if (isNaN(date.getTime())) return ''
       return formatDistanceToNow(date, {
         locale: ptBR,
         addSuffix: true
@@ -124,46 +122,45 @@ export default function Chat() {
 
   return (
     <div className="h-full flex">
-      <aside className="w-80 border-r flex flex-col">
-        <div className="p-6 border-b">
-          <div className="flex flex-col gap-3">
+      <aside className="w-80 border-r border-gray-200 bg-white">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col gap-2">
             <AddContactDialog onSuccess={loadConversations} />
             <CreateGroupDialog onSuccess={loadConversations} />
           </div>
         </div>
-        <h2 className="font-semibold m-4 text-md">Conversas</h2>
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="font-semibold text-sm text-gray-700 uppercase tracking-wide">
+            Conversas
+          </h2>
+        </div>
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-2">
+          <div className="p-2 space-y-2">
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
                 onClick={() => handleSelectConversation(conversation.id)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                  selectedConversation?.id === conversation.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent/50'
-                }`}
+                className={cn(
+                  "p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-100",
+                  selectedConversation?.id === conversation.id && "bg-gray-200 shadow"
+                )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="shrink-0">
-                    {conversation.type === 'DIRECT' ? (
-                      <MessageCircle size={20} />
-                    ) : (
-                      <Users size={20} />
-                    )}
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
+                    {conversation.type === 'DIRECT' ? <MessageCircle size={18} /> : <Users size={18} />}
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium truncate">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm text-gray-800 truncate">
                         {conversation.name}
                       </span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">
                         {conversation.updatedAt ? formatDate(conversation.updatedAt) : ''}
                       </span>
                     </div>
                     {conversation.unreadCount! > 0 && (
                       <div className="mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-600">
                           {conversation.unreadCount}
                         </span>
                       </div>
@@ -175,7 +172,7 @@ export default function Chat() {
           </div>
         </ScrollArea>
       </aside>
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-gray-50">
         {selectedConversation ? (
           <ChatMessages
             conversation={selectedConversation}
@@ -183,8 +180,9 @@ export default function Chat() {
             onSendMessage={handleSendMessage}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Selecione uma conversa para começar
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
+            <MessageCircle size={40} className="mb-4 opacity-40" />
+            <p className="text-sm">Selecione uma conversa para começar</p>
           </div>
         )}
       </div>
