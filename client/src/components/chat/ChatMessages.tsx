@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Send, MessageCircle, Users, MessageSquareDashed } from 'lucide-react'
 import { ElGamal } from '@/utils/elgamal'
 import { cn } from '@/lib/utils'
+import { globalWebSocketService } from '@/services/globalWebSocketService'
 
 interface ChatMessagesProps {
   conversation: ConversationDetails
@@ -21,11 +22,16 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { userId, privateKey } = useAuth()
   const elgamal = new ElGamal()
+  const lastMessageDateRef = useRef<string>('')
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
     }
+    const timeoutId = setTimeout(scrollToBottom, 100)
+    return () => clearTimeout(timeoutId)
   }, [messages])
 
   const formatDate = (dateString: string) => {
@@ -41,11 +47,64 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     }
   }
 
+  const shouldShowDate = (dateString: string) => {
+    const currentDate = new Date(dateString).toLocaleDateString()
+    if (currentDate !== lastMessageDateRef.current) {
+      lastMessageDateRef.current = currentDate
+      return true
+    }
+    return false
+  }
+
+  const renderMessage = (message: Message) => {
+    const isOwnMessage = message.senderId === userId
+    const sender = getSender(message.senderId)
+    const content = decryptMessageContent(message)
+    const showDate = shouldShowDate(message.createdAt)
+
+    return (
+      <div key={message.id} className="flex flex-col">
+        {showDate && (
+          <div className="flex justify-center my-3">
+            <span className="text-xs bg-muted px-3 py-1 rounded-full text-muted-foreground">
+              {new Date(message.createdAt).toLocaleDateString('pt-BR')}
+            </span>
+          </div>
+        )}
+        <div className={cn("flex mb-2 px-4", isOwnMessage ? "justify-end" : "justify-start")}>
+          <div className={cn(
+            "max-w-[75%] rounded-2xl px-4 py-2",
+            isOwnMessage
+              ? "bg-blue-500 text-white rounded-br-sm"
+              : "bg-gray-100 dark:bg-gray-800 rounded-bl-sm"
+          )}>
+            {!isOwnMessage && (
+              <div className="text-xs font-medium mb-1 text-muted-foreground">
+                {sender?.username}
+              </div>
+            )}
+            <p className="break-words text-sm">{content}</p>
+            <div className={cn(
+              "text-[10px] mt-1 text-right",
+              isOwnMessage ? "text-blue-100" : "text-muted-foreground"
+            )}>
+              {formatDate(message.createdAt)}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim()) return
     try {
-      await onSendMessage(newMessage)
+      await globalWebSocketService.sendMessage(
+        conversation.id,
+        newMessage,
+        conversation.participants
+      )
       setNewMessage('')
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error)
@@ -74,7 +133,7 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex flex-col h-full">
       <div className="border-b border-gray-200 p-4 bg-white">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -90,63 +149,33 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
           </div>
         </div>
       </div>
-      <ScrollArea className="flex-1 px-4" type="always">
-        <div className="py-4 space-y-4">
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
               <MessageSquareDashed size={40} className="mb-4 opacity-40" />
               <p className="text-sm">Ainda não há mensagens nesta conversa</p>
               <p className="text-xs">Comece uma conversa agora!</p>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <div
-                key={message.id || index}
-                className={cn("flex", message.senderId === userId ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[70%] rounded-lg p-3 shadow-md transition-all ease-in-out duration-200",
-                    message.senderId === userId
-                      ? "bg-blue-500 text-white ml-12 hover:shadow-lg"
-                      : "bg-gray-100 text-gray-800 border border-gray-200 mr-12 hover:shadow-lg"
-                  )}
-                >
-                  <div className="flex flex-col gap-1">
-                    <span className={cn(
-                      "text-xs font-medium",
-                      message.senderId === userId ? "text-white" : "text-gray-600"
-                    )}>
-                      {getSender(message.senderId)?.username || 'Usuário Desconhecido'}
-                    </span>
-                    <p className="text-sm break-words leading-relaxed">
-                      {decryptMessageContent(message)}
-                    </p>
-                    <span className="text-[11px] text-gray-500">
-                      {formatDate(message.createdAt!)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
+            messages.map(renderMessage)
           )}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="border-t border-gray-200 p-4 bg-white">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="p-4 border-t">
+        <div className="flex gap-2">
           <Input
-            type="text"
-            placeholder="Digite sua mensagem..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-1 border border-gray-300 rounded"
+            placeholder="Digite sua mensagem..."
+            className="flex-1"
           />
-          <Button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white rounded shadow">
-            <Send size={16} />
+          <Button type="submit" size="icon" variant="default">
+            <Send className="h-4 w-4" />
           </Button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   )
 }

@@ -10,9 +10,9 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ChatMessages from './ChatMessages'
 import { useAuth } from '@/contexts/AuthContext'
-import { WebSocketService } from '@/services/websocketService'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { globalWebSocketService } from '@/services/globalWebSocketService'
 
 export default function Chat() {
   const { userId } = useAuth()
@@ -21,36 +21,40 @@ export default function Chat() {
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetails | null>(null)
   const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
-  const websocketRef = useRef<WebSocketService | null>(null)
 
   useEffect(() => {
     if (!userId) {
       navigate('/login')
       return
     }
+
+    globalWebSocketService.connect()
     loadConversations()
+
+    return () => {
+      globalWebSocketService.disconnect()
+    }
   }, [userId])
 
   useEffect(() => {
     if (!selectedConversation) return
 
-    websocketRef.current = new WebSocketService()
-    websocketRef.current.connectToConversation(
-      selectedConversation.id,
-      selectedConversation.participants
-    )
-
-    const unsubscribe = websocketRef.current.onConversationMessage(
+    const unsubscribe = globalWebSocketService.subscribeToConversation(
       selectedConversation.id,
       (message) => {
-        setCurrentMessages((prev) => [...prev, message])
-        loadConversations()
+        setCurrentMessages((prev) => {
+          // Evita mensagens duplicadas
+          if (prev.some(m => m.id === message.id)) return prev
+          return [...prev, message].sort((a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        })
+        loadConversations() // Atualiza a lista de conversas
       }
     )
 
     return () => {
       unsubscribe()
-      websocketRef.current?.disconnectFromConversation(selectedConversation.id)
     }
   }, [selectedConversation?.id])
 
@@ -105,11 +109,20 @@ export default function Chat() {
     if (!selectedConversation || !userId) return
 
     try {
-      await websocketRef.current?.sendMessage(
+      const message = await globalWebSocketService.sendMessage(
         selectedConversation.id,
         content,
-        userId
+        selectedConversation.participants
       )
+
+      // Adiciona a mensagem localmente de forma ordenada
+      setCurrentMessages((prev) => {
+        if (prev.some(m => m.id === message.id)) return prev
+        return [...prev, message].sort((a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )
+      })
+      loadConversations()
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error)
       toast({

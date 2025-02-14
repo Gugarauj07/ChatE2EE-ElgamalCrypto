@@ -190,7 +190,7 @@ func SendMessage(c *gin.Context) {
 		ID:             utils.GenerateUUID(),
 		ConversationID: conversationID,
 		SenderID:       userID,
-		CreatedAt:      time.Now().Add(-4 * time.Hour),
+		CreatedAt:      time.Now(),
 	}
 
 	// Salvar a mensagem
@@ -203,6 +203,7 @@ func SendMessage(c *gin.Context) {
 	// Salvar os conteúdos criptografados para cada destinatário
 	for recipientID, encryptedContent := range req.EncryptedContents {
 		recipient := models.MessageRecipient{
+			ID:               utils.GenerateUUID(),
 			MessageID:        message.ID,
 			RecipientID:     recipientID,
 			EncryptedContent: encryptedContent,

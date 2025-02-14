@@ -1,10 +1,10 @@
 package websocket
 
 import (
-    "log"
-    "time"
+	"log"
+	"time"
 
-    gorilla "github.com/gorilla/websocket"
+	gorilla "github.com/gorilla/websocket"
 )
 
 const (
@@ -36,16 +36,20 @@ func (c *Client) ReadPump() {
             break
         }
 
-        log.Printf("Mensagem recebida: %s", message)
+        log.Printf("Mensagem recebida do usuário %s: %s", c.UserID, message)
 
-        if err := ProcessMessage(message); err != nil {
+        participants, responseBytes, err := ProcessMessage(message, c.UserID)
+        if err != nil {
             log.Printf("Erro ao processar mensagem: %v", err)
             continue
         }
 
-        c.Hub.Broadcast <- BroadcastMessage{
-            ConversationID: c.ConversationID,
-            Message:        message,
+        if participants != nil && responseBytes != nil {
+            // Criar a mensagem de broadcast
+            c.Hub.Broadcast <- BroadcastMessage{
+                Message:    responseBytes,
+                Recipients: participants,
+            }
         }
     }
 }

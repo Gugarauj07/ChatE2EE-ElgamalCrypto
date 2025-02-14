@@ -1,13 +1,13 @@
 package controllers
 
 import (
-    "log"
-    "net/http"
-    "server/utils"
-    "server/websocket"
+	"log"
+	"net/http"
+	"server/utils"
+	"server/websocket"
 
-    "github.com/gin-gonic/gin"
-    gorilla "github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
+	gorilla "github.com/gorilla/websocket"
 )
 
 var upgrader = gorilla.Upgrader{
@@ -19,9 +19,9 @@ var upgrader = gorilla.Upgrader{
 }
 
 func ServeWS(c *gin.Context, hub *websocket.Hub) {
-    conversationID := c.Query("conversationId")
-    if conversationID == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "ID da conversa é obrigatório"})
+    userID, err := utils.GetUserIDFromContext(c)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
         return
     }
 
@@ -32,11 +32,11 @@ func ServeWS(c *gin.Context, hub *websocket.Hub) {
     }
 
     client := &websocket.Client{
-        Hub:            hub,
-        ID:             utils.GenerateUUID(),
-        ConversationID: conversationID,
-        Conn:           conn,
-        Send:           make(chan []byte, 256),
+        Hub:    hub,
+        ID:     utils.GenerateUUID(),
+        UserID: userID,
+        Conn:   conn,
+        Send:   make(chan []byte, 256),
     }
 
     client.Hub.Register <- client
