@@ -74,37 +74,61 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     return (
       <div key={message.id} className="flex flex-col">
         {showDate && (
-          <div className="flex justify-center my-3">
-            <span className="text-xs bg-muted px-3 py-1 rounded-full text-muted-foreground">
+          <div className="flex justify-center my-4">
+            <span className="text-[11px] bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full text-gray-500">
               {new Date(message.createdAt).toLocaleDateString('pt-BR')}
             </span>
           </div>
         )}
-        <div className={cn("flex mb-2 px-4", isOwnMessage ? "justify-end" : "justify-start")}>
+        <div className={cn("flex mb-1.5 px-4", isOwnMessage ? "justify-end" : "justify-start")}>
+          {!isOwnMessage && (
+            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-2 mt-2">
+              <span className="text-sm font-medium">
+                {sender?.username.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
           <div className={cn(
-            "max-w-[75%] rounded-2xl px-4 py-2",
-            isOwnMessage
-              ? "bg-blue-500 text-white rounded-br-sm"
-              : "bg-gray-100 dark:bg-gray-800 rounded-bl-sm"
+            "max-w-[80%] group relative",
+            isOwnMessage ? "items-end" : "items-start"
           )}>
             {!isOwnMessage && (
-              <div className="text-xs font-medium mb-1 text-muted-foreground">
+              <span className="text-xs font-medium text-gray-500 ml-1 mb-1">
                 {sender?.username}
-              </div>
+              </span>
             )}
-            <p className="break-words text-sm">{content}</p>
             <div className={cn(
-              "text-[10px] mt-1 text-right flex items-center justify-end gap-1",
-              isOwnMessage ? "text-blue-100" : "text-muted-foreground"
+              "px-4 py-2.5 rounded-2xl text-sm relative",
+              isOwnMessage
+                ? "bg-blue-500 text-white rounded-br-md"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-bl-md shadow-sm"
             )}>
-              <span>{formatDate(message.createdAt)}</span>
-              {isOwnMessage && (
-                <span>
-                  {message.status === 'SENT' && '✓'}
-                  {message.status === 'RECEIVED' && '✓✓'}
-                  {message.status === 'READ' && '✓✓'}
-                </span>
-              )}
+              <p className="break-words leading-relaxed">{content}</p>
+              <div className={cn(
+                "flex items-center gap-1 text-[10px] mt-1",
+                isOwnMessage ? "text-blue-100" : "text-gray-500"
+              )}>
+                <span>{formatDate(message.createdAt)}</span>
+                {isOwnMessage && (
+                  <span className="flex items-center transition-opacity">
+                    {message.status === 'SENT' && (
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                    {message.status === 'RECEIVED' && (
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M2 12l7 7 13-13M2 19l7 7 13-13"/>
+                      </svg>
+                    )}
+                    {message.status === 'READ' && (
+                      <svg className="w-3 h-3 text-blue-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M2 12l7 7 13-13M2 19l7 7 13-13"/>
+                      </svg>
+                    )}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -145,23 +169,23 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-gray-200 p-4 bg-white">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      <div className="border-b bg-white dark:bg-gray-800 px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-            {conversation.type === 'DIRECT' ? <MessageCircle size={16} /> : <Users size={16} />}
+          <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center">
+            {conversation.type === 'DIRECT' ? <MessageCircle size={20} /> : <Users size={20} />}
           </div>
           <div>
-            <h2 className="font-semibold text-sm text-gray-800">
+            <h2 className="font-semibold text-gray-800 dark:text-gray-100">
               {conversation.name}
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {conversation.type === 'DIRECT' ? '2 participantes' : `${conversation.participants.length} participantes`}
             </p>
           </div>
         </div>
       </div>
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 py-4 px-2">
         <div className="space-y-4">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
