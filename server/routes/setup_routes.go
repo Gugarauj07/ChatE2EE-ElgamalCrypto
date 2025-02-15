@@ -1,13 +1,14 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"server/controllers"
 	"server/websocket"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(router *gin.Engine, hub *websocket.Hub) {
-    // Rota WebSocket
+    // Rota WebSocket sem middleware de autenticação
     router.GET("/ws", func(c *gin.Context) {
         controllers.ServeWS(c, hub)
     })

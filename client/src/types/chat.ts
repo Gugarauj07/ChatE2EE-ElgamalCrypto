@@ -27,16 +27,16 @@ export interface ConversationDetails {
   messages?: Message[]
 }
 
+export type MessageStatus = 'SENT' | 'RECEIVED' | 'READ'
+
 export interface Message {
-  id?: string
+  id: string
   conversationId: string
   senderId: string
-  content: {
-    a: string
-    b: string
-    p: string
-  }
-  type?: 'sent' | 'received'
-  createdAt?: string
-  status?: 'SENT' | 'DELIVERED' | 'READ'
+  content: any
+  type?: string
+  createdAt: string
+  status?: MessageStatus
+  deliveredAt?: string
+  readAt?: string
 }

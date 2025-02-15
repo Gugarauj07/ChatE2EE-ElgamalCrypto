@@ -11,6 +11,7 @@ export class GlobalWebSocketService {
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectTimeout: NodeJS.Timeout | null = null
+  private statusHandlers = new Map<string, ((update: { messageId: string, status: string, userId: string }) => void)[]>()
 
   private constructor() {}
 
@@ -22,24 +23,48 @@ export class GlobalWebSocketService {
   }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log('WebSocket já está conectado')
+      return
+    }
 
     try {
-      const wsUrl = process.env.VITE_WS_URL || 'ws://localhost:8080'
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsHost = import.meta.env.VITE_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8080'
+      const token = localStorage.getItem('token')
       const userId = localStorage.getItem('userId')
-      this.ws = new WebSocket(`${wsUrl}/ws?userId=${userId}`)
+
+      if (!token || !userId) {
+        console.error('Usuário não autenticado')
+        return
+      }
+
+      const wsUrl = `${wsProtocol}//${wsHost}/ws?token=${token}`
+      this.ws = new WebSocket(wsUrl)
 
       this.ws.onopen = () => {
-        console.log('Conexão WebSocket global estabelecida')
+        console.log('✅ Conexão WebSocket estabelecida')
         this.reconnectAttempts = 0
+      }
+
+      this.ws.onerror = (error) => {
+        console.error('❌ Erro na conexão WebSocket:', error)
+      }
+
+      this.ws.onclose = () => {
+        console.log('🔴 Conexão WebSocket fechada')
+        this.handleReconnect()
       }
 
       this.ws.onmessage = (event) => {
         try {
           const wsMessage = JSON.parse(event.data)
-          console.log('Mensagem global recebida:', wsMessage)
+          console.log('📩 Mensagem recebida:', {
+            tipo: wsMessage.type,
+            payload: wsMessage.payload
+          })
 
-          if (wsMessage.type === 'message' && wsMessage.payload) {
+          if (wsMessage.type === 'message') {
             const { conversationId, senderId, encryptedContents } = wsMessage.payload
             const userId = localStorage.getItem('userId')
 
@@ -49,6 +74,7 @@ export class GlobalWebSocketService {
             }
 
             const message: Message = {
+              id: wsMessage.payload.messageId || crypto.randomUUID(),
               conversationId,
               senderId,
               content: encryptedContents[userId],
@@ -56,24 +82,25 @@ export class GlobalWebSocketService {
               createdAt: new Date().toISOString()
             }
 
-            this.messageHandlers.get(conversationId)?.forEach(handler => handler(message))
+            console.log('Processando mensagem recebida:', message)
+            const handlers = this.messageHandlers.get(conversationId)
+            if (handlers) {
+              handlers.forEach(handler => handler(message))
+            }
+          } else if (wsMessage.type === 'status_update') {
+            const { messageId, status, userId } = wsMessage.payload
+            // Notificar handlers sobre atualização de status
+            const handlers = this.statusHandlers?.get(messageId)
+            if (handlers) {
+              handlers.forEach(handler => handler({ messageId, status, userId }))
+            }
           }
         } catch (error) {
           console.error('Erro ao processar mensagem global:', error)
         }
       }
-
-      this.ws.onerror = (error) => {
-        console.error('Erro na conexão WebSocket global:', error)
-        this.handleReconnect()
-      }
-
-      this.ws.onclose = () => {
-        console.log('Conexão WebSocket global fechada')
-        this.handleReconnect()
-      }
     } catch (error) {
-      console.error('Erro ao estabelecer conexão WebSocket global:', error)
+      console.error('Erro ao estabelecer conexão WebSocket:', error)
       this.handleReconnect()
     }
   }
@@ -137,6 +164,37 @@ export class GlobalWebSocketService {
       this.ws = null
     }
     this.messageHandlers.clear()
+  }
+
+  async updateMessageStatus(messageId: string, status: 'RECEIVED' | 'READ') {
+    // Enviar apenas via WebSocket
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'message_status',
+        payload: {
+          messageId,
+          status,
+          userId: localStorage.getItem('userId')
+        }
+      }))
+    }
+  }
+
+  subscribeToMessageStatus(messageId: string, handler: (update: { messageId: string, status: string, userId: string }) => void) {
+    if (!this.statusHandlers.has(messageId)) {
+      this.statusHandlers.set(messageId, [])
+    }
+    this.statusHandlers.get(messageId)?.push(handler)
+
+    return () => {
+      const handlers = this.statusHandlers.get(messageId)
+      if (handlers) {
+        this.statusHandlers.set(
+          messageId,
+          handlers.filter(h => h !== handler)
+        )
+      }
+    }
   }
 }
 

@@ -34,6 +34,15 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     return () => clearTimeout(timeoutId)
   }, [messages])
 
+  useEffect(() => {
+    // Marcar mensagens como recebidas quando visualizadas
+    messages.forEach(message => {
+      if (message.senderId !== userId && message.status === 'SENT') {
+        globalWebSocketService.updateMessageStatus(message.id, 'RECEIVED')
+      }
+    })
+  }, [messages, userId])
+
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString)
@@ -85,10 +94,17 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
             )}
             <p className="break-words text-sm">{content}</p>
             <div className={cn(
-              "text-[10px] mt-1 text-right",
+              "text-[10px] mt-1 text-right flex items-center justify-end gap-1",
               isOwnMessage ? "text-blue-100" : "text-muted-foreground"
             )}>
-              {formatDate(message.createdAt)}
+              <span>{formatDate(message.createdAt)}</span>
+              {isOwnMessage && (
+                <span>
+                  {message.status === 'SENT' && '✓'}
+                  {message.status === 'RECEIVED' && '✓✓'}
+                  {message.status === 'READ' && '✓✓'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -100,11 +116,7 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
     e.preventDefault()
     if (!newMessage.trim()) return
     try {
-      await globalWebSocketService.sendMessage(
-        conversation.id,
-        newMessage,
-        conversation.participants
-      )
+      await onSendMessage(newMessage)
       setNewMessage('')
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error)

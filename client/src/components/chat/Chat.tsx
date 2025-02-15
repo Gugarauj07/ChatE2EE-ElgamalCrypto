@@ -39,18 +39,20 @@ export default function Chat() {
   useEffect(() => {
     if (!selectedConversation) return
 
+    const handleNewMessage = (message: Message) => {
+      console.log('Nova mensagem recebida:', message)
+      setCurrentMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev
+        const newMessages = [...prev, message]
+        return newMessages.sort((a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )
+      })
+    }
+
     const unsubscribe = globalWebSocketService.subscribeToConversation(
       selectedConversation.id,
-      (message) => {
-        setCurrentMessages((prev) => {
-          // Evita mensagens duplicadas
-          if (prev.some(m => m.id === message.id)) return prev
-          return [...prev, message].sort((a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          )
-        })
-        loadConversations() // Atualiza a lista de conversas
-      }
+      handleNewMessage
     )
 
     return () => {
@@ -115,14 +117,15 @@ export default function Chat() {
         selectedConversation.participants
       )
 
-      // Adiciona a mensagem localmente de forma ordenada
-      setCurrentMessages((prev) => {
+      setCurrentMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev
-        return [...prev, message].sort((a, b) =>
+        const newMessages = [...prev, message]
+        return newMessages.sort((a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         )
       })
-      loadConversations()
+
+      await loadConversations()
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error)
       toast({

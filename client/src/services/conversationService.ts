@@ -62,5 +62,21 @@ export const conversationService = {
     }
 
     return await response.json()
+  },
+
+  async updateMessageStatus(messageId: string, status: 'RECEIVED' | 'READ'): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/messages/${messageId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ status })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Erro ao atualizar status da mensagem')
+    }
   }
 }
