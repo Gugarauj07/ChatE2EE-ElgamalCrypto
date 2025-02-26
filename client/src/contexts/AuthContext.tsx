@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { PublicKey, PrivateKey } from '@/utils/elgamal'
 import { encryptForLocalStorage, decryptFromLocalStorage } from '@/utils/cryptoUtils'
+import { websocketService } from '@/services/websocketService'
 
 interface AuthState {
   userId: string | null
@@ -80,6 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthState: setAuthStateAndPersist,
     clearAuth
   }
+
+  useEffect(() => {
+    if (authState.userId) {
+      websocketService.connect(authState.userId)
+    }
+
+    return () => {
+      websocketService.disconnect()
+    }
+  }, [authState.userId])
 
   return (
     <AuthContext.Provider value={contextValue}>

@@ -122,7 +122,7 @@ export default function ChatMessages({ conversation, messages, onSendMessage }: 
                     <p className="text-sm break-words leading-relaxed">
                       {decryptMessageContent(message)}
                     </p>
-                    <span className="text-[11px] text-gray-500">
+                    <span className={cn("text-[11px]", message.senderId === userId ? "text-gray-200" : "text-gray-500")}>
                       {formatDate(message.createdAt!)}
                     </span>
                   </div>

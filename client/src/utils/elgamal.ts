@@ -285,8 +285,6 @@ export class ElGamal {
    * @returns O inverso modular.
    */
   private modularInverse(a: bigint, m: bigint): bigint {
-    console.log('Calculando inverso modular para a:', a.toString(), 'm:', m.toString());
-
     if (a === 0n || m === 0n) {
       throw new Error("Inverso modular não existe para zero");
     }

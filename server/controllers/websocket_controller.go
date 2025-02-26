@@ -1,13 +1,12 @@
 package controllers
 
 import (
-    "log"
-    "net/http"
-    "server/utils"
-    "server/websocket"
+	"log"
+	"net/http"
+	"server/websocket"
 
-    "github.com/gin-gonic/gin"
-    gorilla "github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
+	gorilla "github.com/gorilla/websocket"
 )
 
 var upgrader = gorilla.Upgrader{
@@ -19,11 +18,13 @@ var upgrader = gorilla.Upgrader{
 }
 
 func ServeWS(c *gin.Context, hub *websocket.Hub) {
-    conversationID := c.Query("conversationId")
-    if conversationID == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "ID da conversa é obrigatório"})
+    userID := c.Query("userId")
+    if userID == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "ID do usuário é obrigatório"})
         return
     }
+
+    log.Printf("Iniciando conexão WebSocket para usuário: %s", userID)
 
     conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
     if err != nil {
@@ -32,15 +33,18 @@ func ServeWS(c *gin.Context, hub *websocket.Hub) {
     }
 
     client := &websocket.Client{
-        Hub:            hub,
-        ID:             utils.GenerateUUID(),
-        ConversationID: conversationID,
-        Conn:           conn,
-        Send:           make(chan []byte, 256),
+        Hub:    hub,
+        UserID: userID,
+        Conn:   conn,
+        Send:   make(chan []byte, 256),
     }
 
+    log.Printf("Registrando cliente WebSocket para usuário: %s", userID)
     client.Hub.Register <- client
 
+    // Iniciar goroutines para leitura e escrita
     go client.WritePump()
     go client.ReadPump()
+
+    log.Printf("Conexão WebSocket estabelecida para usuário: %s", userID)
 }

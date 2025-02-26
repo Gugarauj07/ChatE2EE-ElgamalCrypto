@@ -1,11 +1,11 @@
 package websocket
 
 import (
-    "encoding/json"
-    "log"
-    "sync"
+	"encoding/json"
+	"log"
+	"sync"
 
-    gorilla "github.com/gorilla/websocket"
+	gorilla "github.com/gorilla/websocket"
 )
 
 // WSMessage representa uma mensagem WebSocket
@@ -16,17 +16,16 @@ type WSMessage struct {
 
 // Client representa uma conexão WebSocket
 type Client struct {
-    Hub            *Hub
-    ID             string
-    ConversationID string
-    Conn           *gorilla.Conn
-    Send           chan []byte
-    mu             sync.Mutex
+    Hub     *Hub
+    UserID  string
+    Conn    *gorilla.Conn
+    Send    chan []byte
+    mu      sync.Mutex
 }
 
 // Hub mantém o registro de clientes ativos e gerencia mensagens
 type Hub struct {
-    Clients    map[string]map[string]*Client // conversationID -> clientID -> client
+    Clients    map[string]*Client // userID -> client
     Register   chan *Client
     Unregister chan *Client
     Broadcast  chan BroadcastMessage
@@ -34,79 +33,69 @@ type Hub struct {
 }
 
 type BroadcastMessage struct {
-    ConversationID string
-    Message        []byte
+    Type       string          `json:"type"`
+    Payload    json.RawMessage `json:"payload"`
+    Recipients []string        // Lista de userIDs
 }
 
 func NewHub() *Hub {
     return &Hub{
-        Clients:    make(map[string]map[string]*Client),
+        Clients:    make(map[string]*Client),
         Register:   make(chan *Client),
         Unregister: make(chan *Client),
         Broadcast:  make(chan BroadcastMessage),
     }
 }
+
 func (h *Hub) Run() {
     for {
         select {
         case client := <-h.Register:
             h.mu.Lock()
-            if _, ok := h.Clients[client.ConversationID]; !ok {
-                h.Clients[client.ConversationID] = make(map[string]*Client)
-            }
-            h.Clients[client.ConversationID][client.ID] = client
+            h.Clients[client.UserID] = client
             h.mu.Unlock()
+            log.Printf("Cliente %s registrado", client.UserID)
 
         case client := <-h.Unregister:
             h.mu.Lock()
-            if clients, ok := h.Clients[client.ConversationID]; ok {
-                if _, ok := clients[client.ID]; ok {
-                    delete(clients, client.ID)
-                    close(client.Send)
-                }
+            if _, ok := h.Clients[client.UserID]; ok {
+                delete(h.Clients, client.UserID)
+                close(client.Send)
+                log.Printf("Cliente %s desregistrado", client.UserID)
             }
             h.mu.Unlock()
 
-        case broadcastMsg := <-h.Broadcast:
+        case message := <-h.Broadcast:
+            log.Printf("Broadcast para %d destinatários: %s", len(message.Recipients), message.Type)
+
+            // Preparar a mensagem completa com tipo
+            completeMessage := WSMessage{
+                Type:    message.Type,
+                Payload: message.Payload,
+            }
+
+            messageBytes, err := json.Marshal(completeMessage)
+            if err != nil {
+                log.Printf("Erro ao serializar mensagem para broadcast: %v", err)
+                continue
+            }
+
             h.mu.RLock()
-            clients := h.Clients[broadcastMsg.ConversationID]
-            for _, client := range clients {
-                select {
-                case client.Send <- broadcastMsg.Message:
-                default:
-                    close(client.Send)
-                    delete(h.Clients[client.ConversationID], client.ID)
+            for _, userID := range message.Recipients {
+                if client, ok := h.Clients[userID]; ok {
+                    select {
+                    case client.Send <- messageBytes:
+                        log.Printf("Mensagem enviada para cliente %s", userID)
+                    default:
+                        log.Printf("Buffer cheio para cliente %s, desconectando", userID)
+                        close(client.Send)
+                        delete(h.Clients, userID)
+                    }
+                } else {
+                    log.Printf("Cliente %s não está conectado", userID)
                 }
             }
             h.mu.RUnlock()
-        }
-    }
-}
-
-func (h *Hub) broadcastMessage(bm BroadcastMessage) {
-    h.mu.RLock()
-    clients := h.Clients[bm.ConversationID]
-    h.mu.RUnlock()
-
-    log.Printf("Mensagem original recebida para broadcast: %+v", string(bm.Message))
-
-    // Adicione este log para ver a estrutura completa da mensagem
-    var messageStruct map[string]interface{}
-    if err := json.Unmarshal(bm.Message, &messageStruct); err != nil {
-        log.Printf("Erro ao decodificar mensagem: %v", err)
-        return
-    }
-    prettyJSON, _ := json.MarshalIndent(messageStruct, "", "    ")
-    log.Printf("Estrutura da mensagem que será enviada aos clientes:\n%s", string(prettyJSON))
-
-    for _, client := range clients {
-        select {
-        case client.Send <- bm.Message:
-            log.Printf("Mensagem enviada para cliente %s", client.ID)
-        default:
-            log.Printf("Falha ao enviar mensagem para cliente %s", client.ID)
-            close(client.Send)
-            h.Unregister <- client
         }
     }
 }

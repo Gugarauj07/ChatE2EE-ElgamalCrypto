@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ChatMessages from './ChatMessages'
 import { useAuth } from '@/contexts/AuthContext'
-import { WebSocketService } from '@/services/websocketService'
+import { websocketService } from '@/services/websocketService'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
@@ -21,37 +21,33 @@ export default function Chat() {
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetails | null>(null)
   const [currentMessages, setCurrentMessages] = useState<Message[]>([])
   const { toast } = useToast()
-  const websocketRef = useRef<WebSocketService | null>(null)
 
   useEffect(() => {
     if (!userId) {
       navigate('/login')
       return
     }
+
     loadConversations()
+    const unsubscribe = websocketService.onConversationUpdate(() => {
+      loadConversations()
+    })
+
+    return () => unsubscribe()
   }, [userId])
 
   useEffect(() => {
     if (!selectedConversation) return
 
-    websocketRef.current = new WebSocketService()
-    websocketRef.current.connectToConversation(
-      selectedConversation.id,
-      selectedConversation.participants
-    )
-
-    const unsubscribe = websocketRef.current.onConversationMessage(
+    const unsubscribe = websocketService.onMessage(
       selectedConversation.id,
       (message) => {
+        console.log("Nova mensagem recebida:", message);
         setCurrentMessages((prev) => [...prev, message])
-        loadConversations()
       }
     )
 
-    return () => {
-      unsubscribe()
-      websocketRef.current?.disconnectFromConversation(selectedConversation.id)
-    }
+    return () => unsubscribe()
   }, [selectedConversation?.id])
 
   const loadConversations = async () => {
@@ -105,10 +101,10 @@ export default function Chat() {
     if (!selectedConversation || !userId) return
 
     try {
-      await websocketRef.current?.sendMessage(
+      await websocketService.sendMessage(
         selectedConversation.id,
         content,
-        userId
+        selectedConversation.participants
       )
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error)

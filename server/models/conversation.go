@@ -26,3 +26,13 @@ type ConversationParticipant struct {
 	Conversation Conversation `gorm:"foreignKey:ConversationID"`
 	User         User        `gorm:"foreignKey:UserID"`
 }
+
+type ConversationParticipants []ConversationParticipant
+
+func (p ConversationParticipants) GetUserIDs() []string {
+	ids := make([]string, len(p))
+	for i, participant := range p {
+		ids[i] = participant.UserID
+	}
+	return ids
+}

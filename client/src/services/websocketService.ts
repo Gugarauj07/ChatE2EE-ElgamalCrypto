@@ -1,116 +1,131 @@
-import { Message, ConversationDetails } from '@/types/chat'
+import { Message } from '@/types/chat'
 import { ElGamal } from '@/utils/elgamal'
 
+type MessageHandler = (message: Message) => void
+type ConversationUpdateHandler = () => void
+
 export class WebSocketService {
-  private connections: Map<string, WebSocket> = new Map()
-  private messageHandlers: Map<string, ((message: Message) => void)[]> = new Map()
-  private reconnectAttempts: Map<string, number> = new Map()
+  private static instance: WebSocketService
+  private ws: WebSocket | null = null
+  private messageHandlers: Map<string, MessageHandler[]> = new Map()
+  private conversationUpdateHandlers: Set<ConversationUpdateHandler> = new Set()
+  private reconnectTimeout: NodeJS.Timeout | null = null
   private maxReconnectAttempts = 5
-  private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map()
-  private conversationParticipants: Map<string, ConversationDetails['participants']> = new Map()
+  private currentAttempts = 0
 
-  connectToConversation(conversationId: string, participants: ConversationDetails['participants']) {
-    this.conversationParticipants.set(conversationId, participants)
+  private constructor() {}
 
-    if (this.connections.get(conversationId)?.readyState === WebSocket.OPEN) {
+  static getInstance(): WebSocketService {
+    if (!WebSocketService.instance) {
+      WebSocketService.instance = new WebSocketService()
+    }
+    return WebSocketService.instance
+  }
+
+  connect(userId: string) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
       return
     }
 
-    try {
-      const wsUrl = process.env.VITE_WS_URL || 'ws://localhost:8080'
-      const ws = new WebSocket(`${wsUrl}/ws?conversationId=${conversationId}`)
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080'
+    this.ws = new WebSocket(`${wsUrl}/ws?userId=${userId}`)
 
-      ws.onopen = () => {
-        console.log(`Conexão WebSocket estabelecida para conversa ${conversationId}`)
-        this.reconnectAttempts.set(conversationId, 0)
-      }
+    this.ws.onopen = () => {
+      console.log('WebSocket conectado')
+      this.currentAttempts = 0
+    }
 
-      ws.onmessage = (event) => {
-        try {
-          console.log('Dados brutos recebidos do WebSocket:', event.data)
-          const wsMessage = JSON.parse(event.data)
-          console.log('Mensagem parseada:', wsMessage)
+    this.ws.onmessage = (event) => {
+      try {
+        const wsMessage = JSON.parse(event.data)
 
-          if (wsMessage.type === 'message' && wsMessage.payload) {
-            const { encryptedContents, senderId, conversationId } = wsMessage.payload
-            const userId = localStorage.getItem('userId')
-
-            if (!userId || !encryptedContents[userId]) {
-              console.error('Conteúdo criptografado não encontrado para o usuário atual')
-              return
-            }
-
-            const message: Message = {
-              conversationId,
-              senderId,
-              content: encryptedContents[userId],
-              type: 'received',
-              createdAt: new Date().toISOString()
-            }
-
-            console.log('Mensagem WebSocket processada:', message)
-            this.messageHandlers.get(conversationId)?.forEach(handler => handler(message))
-          }
-        } catch (error) {
-          console.error('Erro ao processar mensagem do WebSocket:', error)
+        switch (wsMessage.type) {
+          case 'message':
+            this.handleNewMessage(wsMessage.payload)
+            break
+          case 'conversation_update':
+            this.notifyConversationUpdate()
+            break
         }
+      } catch (error) {
+        console.error('Erro ao processar mensagem:', error)
       }
+    }
 
-      ws.onerror = (error) => {
-        console.error(`Erro no WebSocket para conversa ${conversationId}:`, error)
-        this.handleReconnect(conversationId)
-      }
+    this.ws.onclose = () => {
+      console.log('WebSocket desconectado')
+      this.handleReconnect(userId)
+    }
 
-      ws.onclose = () => {
-        console.log(`Conexão WebSocket fechada para conversa ${conversationId}`)
-        this.handleReconnect(conversationId)
-      }
-
-      this.connections.set(conversationId, ws)
-    } catch (error) {
-      console.error(`Erro ao estabelecer conexão WebSocket para conversa ${conversationId}:`, error)
-      this.handleReconnect(conversationId)
+    this.ws.onerror = (error) => {
+      console.error('Erro no WebSocket:', error)
     }
   }
 
-  private handleReconnect(conversationId: string) {
-    const attempts = this.reconnectAttempts.get(conversationId) || 0
-    if (attempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts.set(conversationId, attempts + 1)
-      const delay = Math.min(1000 * Math.pow(2, attempts), 10000)
+  private handleNewMessage(payload: any) {
+    console.log('Payload WebSocket recebido:', payload)
 
-      const timeout = setTimeout(() => {
-        const storedParticipants = this.conversationParticipants.get(conversationId)
-        if (storedParticipants) {
-          this.connectToConversation(conversationId, storedParticipants)
-        } else {
-          console.error(`Não foi possível reconectar: participantes não encontrados para conversa ${conversationId}`)
-        }
-      }, delay)
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload)
+      } catch (error) {
+        console.error('Erro ao parsear payload:', error)
+        return
+      }
+    }
 
-      this.reconnectTimeouts.set(conversationId, timeout)
+    const { id, conversationId, senderId, createdAt, encryptedContents } = payload
+    const userId = localStorage.getItem('userId')
+
+    if (!userId || !encryptedContents || !encryptedContents[userId]) {
+      console.error('Conteúdo criptografado não encontrado para usuário:', userId)
+      return
+    }
+
+    const message: Message = {
+      id,
+      conversationId,
+      senderId,
+      content: encryptedContents[userId],
+      createdAt
+    }
+
+    console.log('Mensagem processada:', message)
+    const handlers = this.messageHandlers.get(conversationId)
+
+    if (handlers) {
+      handlers.forEach(handler => handler(message))
+    } else {
+      console.error('Nenhum handler encontrado para conversationId:', conversationId)
     }
   }
 
-  disconnectFromConversation(conversationId: string) {
-    const timeout = this.reconnectTimeouts.get(conversationId)
-    if (timeout) {
-      clearTimeout(timeout)
-      this.reconnectTimeouts.delete(conversationId)
+  private handleReconnect(userId: string) {
+    if (this.currentAttempts >= this.maxReconnectAttempts) return
+
+    const delay = Math.min(1000 * Math.pow(2, this.currentAttempts), 10000)
+    this.currentAttempts++
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
     }
 
-    const ws = this.connections.get(conversationId)
-    if (ws) {
-      ws.close()
-      this.connections.delete(conversationId)
-    }
-
-    this.messageHandlers.delete(conversationId)
-    this.reconnectAttempts.delete(conversationId)
-    this.conversationParticipants.delete(conversationId)
+    this.reconnectTimeout = setTimeout(() => {
+      this.connect(userId)
+    }, delay)
   }
 
-  onConversationMessage(conversationId: string, handler: (message: Message) => void) {
+  disconnect() {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+    }
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+  }
+
+  onMessage(conversationId: string, handler: MessageHandler) {
     if (!this.messageHandlers.has(conversationId)) {
       this.messageHandlers.set(conversationId, [])
     }
@@ -127,41 +142,48 @@ export class WebSocketService {
     }
   }
 
-  async sendMessage(conversationId: string, content: string, senderId: string) {
-    const ws = this.connections.get(conversationId)
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket não está conectado para esta conversa')
+  onConversationUpdate(handler: ConversationUpdateHandler) {
+    this.conversationUpdateHandlers.add(handler)
+    return () => {
+      this.conversationUpdateHandlers.delete(handler)
+    }
+  }
+
+  private notifyConversationUpdate() {
+    this.conversationUpdateHandlers.forEach(handler => handler())
+  }
+
+  sendMessage(conversationId: string, content: string, participants: any[]) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket não está conectado')
     }
 
-    const participants = this.conversationParticipants.get(conversationId)
-    if (!participants) {
-      throw new Error('Participantes da conversa não encontrados')
+    console.log('Enviando mensagem:', {
+      conversationId,
+      participants,
+      wsState: this.ws.readyState
+    })
+
+    const elgamal = new ElGamal()
+    const encryptedContents: { [key: string]: any } = {}
+
+    for (const participant of participants) {
+      console.log('Criptografando para participante:', participant)
+      const encrypted = elgamal.encrypt(content, participant.publicKey)
+      encryptedContents[participant.id] = encrypted
     }
 
-    try {
-      const elgamal = new ElGamal()
-      const encryptedContents: { [key: string]: any } = {}
-
-      for (const participant of participants) {
-        const encrypted = elgamal.encrypt(content, participant.publicKey)
-        encryptedContents[participant.id] = encrypted
+    const message = {
+      type: 'message',
+      payload: {
+        conversationId,
+        encryptedContents
       }
-
-      ws.send(JSON.stringify({
-        type: 'message',
-        payload: {
-          conversationId,
-          senderId,
-          encryptedContents
-        }
-      }))
-
-      console.log('Mensagem criptografada enviada via WebSocket')
-    } catch (error) {
-      console.error('Erro ao criptografar e enviar mensagem:', error)
-      throw error
     }
+
+    console.log('Enviando mensagem WebSocket:', message)
+    this.ws.send(JSON.stringify(message))
   }
 }
 
-export const websocketService = new WebSocketService()
+export const websocketService = WebSocketService.getInstance()

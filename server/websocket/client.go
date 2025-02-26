@@ -1,10 +1,11 @@
 package websocket
 
 import (
-    "log"
-    "time"
+	"encoding/json"
+	"log"
+	"time"
 
-    gorilla "github.com/gorilla/websocket"
+	gorilla "github.com/gorilla/websocket"
 )
 
 const (
@@ -36,20 +37,23 @@ func (c *Client) ReadPump() {
             break
         }
 
-        log.Printf("Mensagem recebida: %s", message)
+        var wsMessage struct {
+            Type    string          `json:"type"`
+            Payload json.RawMessage `json:"payload"`
+        }
 
-        if err := ProcessMessage(message); err != nil {
-            log.Printf("Erro ao processar mensagem: %v", err)
+        if err := json.Unmarshal(message, &wsMessage); err != nil {
+            log.Printf("Erro ao decodificar mensagem: %v", err)
             continue
         }
 
-        c.Hub.Broadcast <- BroadcastMessage{
-            ConversationID: c.ConversationID,
-            Message:        message,
+        if err := c.Hub.HandleMessage(wsMessage.Type, wsMessage.Payload, c.UserID); err != nil {
+            log.Printf("Erro ao processar mensagem: %v", err)
         }
     }
 }
 
+// WritePump bombeia mensagens do hub para a conexão websocket
 func (c *Client) WritePump() {
     ticker := time.NewTicker(pingPeriod)
     defer func() {
@@ -60,29 +64,41 @@ func (c *Client) WritePump() {
     for {
         select {
         case message, ok := <-c.Send:
+            c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
             if !ok {
+                // O hub fechou o canal
                 c.Conn.WriteMessage(gorilla.CloseMessage, []byte{})
                 return
             }
-
-            log.Printf("Mensagem sendo enviada para o cliente %s: %s", c.ID, string(message))
 
             w, err := c.Conn.NextWriter(gorilla.TextMessage)
             if err != nil {
                 return
             }
-            w.Write(message)
 
-            n := len(c.Send)
-            for i := 0; i < n; i++ {
-                w.Write([]byte{'\n'})
-                w.Write(<-c.Send)
+            // Decodificar a mensagem para adicionar o tipo
+            var payload map[string]interface{}
+            if err := json.Unmarshal(message, &payload); err != nil {
+                log.Printf("Erro ao decodificar payload para envio: %v", err)
+                w.Close()
+                continue
             }
+
+            // Verificar se já existe um campo "type"
+            if _, ok := payload["type"]; !ok {
+                // Se não existir, adicionar o tipo "message" por padrão
+                completeMessage := map[string]interface{}{
+                    "type":    "message",
+                    "payload": payload,
+                }
+                message, _ = json.Marshal(completeMessage)
+            }
+
+            w.Write(message)
 
             if err := w.Close(); err != nil {
                 return
             }
-
         case <-ticker.C:
             c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
             if err := c.Conn.WriteMessage(gorilla.PingMessage, nil); err != nil {
