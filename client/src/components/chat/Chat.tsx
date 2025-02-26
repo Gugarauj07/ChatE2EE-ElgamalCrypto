@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ConversationDetails, ConversationListItem, Message } from '@/types/chat'
 import { conversationService } from '@/services/conversationService'
@@ -39,15 +39,26 @@ export default function Chat() {
   useEffect(() => {
     if (!selectedConversation) return
 
+    console.log(`Registrando handler para conversa: ${selectedConversation.id}`)
+
     const unsubscribe = websocketService.onMessage(
       selectedConversation.id,
       (message) => {
         console.log("Nova mensagem recebida:", message);
-        setCurrentMessages((prev) => [...prev, message])
+        setCurrentMessages((prev) => {
+          if (prev.some(m => m.id === message.id)) {
+            console.log(`Mensagem ${message.id} já existe, ignorando duplicata`);
+            return prev;
+          }
+          return [...prev, message];
+        });
       }
     )
 
-    return () => unsubscribe()
+    return () => {
+      console.log(`Removendo handler para conversa: ${selectedConversation.id}`)
+      unsubscribe()
+    }
   }, [selectedConversation?.id])
 
   const loadConversations = async () => {
@@ -65,12 +76,19 @@ export default function Chat() {
 
   const loadConversationDetails = async (conversationId: string) => {
     try {
+      console.log(`Carregando detalhes da conversa: ${conversationId}`)
       const conversation = await conversationService.getConversation(conversationId)
       const sortedMessages = [...(conversation.messages || [])].sort(
         (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
       )
+
+      // Remover mensagens duplicadas antes de definir o estado
+      const uniqueMessages = Array.from(
+        new Map(sortedMessages.map(msg => [msg.id, msg])).values()
+      )
+
       setSelectedConversation(conversation)
-      setCurrentMessages(sortedMessages)
+      setCurrentMessages(uniqueMessages)
     } catch (error) {
       toast({
         variant: "destructive",

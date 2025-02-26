@@ -7,11 +7,13 @@ type ConversationUpdateHandler = () => void
 export class WebSocketService {
   private static instance: WebSocketService
   private ws: WebSocket | null = null
-  private messageHandlers: Map<string, MessageHandler[]> = new Map()
-  private conversationUpdateHandlers: Set<ConversationUpdateHandler> = new Set()
-  private reconnectTimeout: NodeJS.Timeout | null = null
-  private maxReconnectAttempts = 5
+  private messageHandlers = new Map<string, ((message: Message) => void)[]>()
+  private conversationUpdateHandlers: (() => void)[] = []
   private currentAttempts = 0
+  private maxAttempts = 5
+  private reconnectDelay = 3000
+  private pendingMessages = new Map<string, Message[]>()
+  private reconnectTimeout: NodeJS.Timeout | null = null
 
   private constructor() {}
 
@@ -93,17 +95,24 @@ export class WebSocketService {
     console.log('Mensagem processada:', message)
     const handlers = this.messageHandlers.get(conversationId)
 
-    if (handlers) {
+    if (handlers && handlers.length > 0) {
       handlers.forEach(handler => handler(message))
     } else {
-      console.error('Nenhum handler encontrado para conversationId:', conversationId)
+      console.log(`Nenhum handler encontrado para conversationId: ${conversationId}. Armazenando mensagem para entrega posterior.`)
+
+      if (!this.pendingMessages.has(conversationId)) {
+        this.pendingMessages.set(conversationId, [])
+      }
+      this.pendingMessages.get(conversationId)?.push(message)
+
+      this.notifyConversationUpdate()
     }
   }
 
   private handleReconnect(userId: string) {
-    if (this.currentAttempts >= this.maxReconnectAttempts) return
+    if (this.currentAttempts >= this.maxAttempts) return
 
-    const delay = Math.min(1000 * Math.pow(2, this.currentAttempts), 10000)
+    const delay = Math.min(this.reconnectDelay, 10000)
     this.currentAttempts++
 
     if (this.reconnectTimeout) {
@@ -125,27 +134,40 @@ export class WebSocketService {
     }
   }
 
-  onMessage(conversationId: string, handler: MessageHandler) {
+  onMessage(conversationId: string, handler: (message: Message) => void): () => void {
     if (!this.messageHandlers.has(conversationId)) {
       this.messageHandlers.set(conversationId, [])
     }
+
     this.messageHandlers.get(conversationId)?.push(handler)
+    console.log(`Handler registrado para conversationId: ${conversationId}`)
+
+    const pendingMessages = this.pendingMessages.get(conversationId) || []
+    if (pendingMessages.length > 0) {
+      console.log(`Entregando ${pendingMessages.length} mensagens pendentes para conversationId: ${conversationId}`)
+      pendingMessages.forEach(message => handler(message))
+      this.pendingMessages.delete(conversationId)
+    }
 
     return () => {
       const handlers = this.messageHandlers.get(conversationId)
       if (handlers) {
-        this.messageHandlers.set(
-          conversationId,
-          handlers.filter(h => h !== handler)
-        )
+        const index = handlers.indexOf(handler)
+        if (index !== -1) {
+          handlers.splice(index, 1)
+          console.log(`Handler removido para conversationId: ${conversationId}`)
+        }
       }
     }
   }
 
   onConversationUpdate(handler: ConversationUpdateHandler) {
-    this.conversationUpdateHandlers.add(handler)
+    this.conversationUpdateHandlers.push(handler)
     return () => {
-      this.conversationUpdateHandlers.delete(handler)
+      const index = this.conversationUpdateHandlers.indexOf(handler)
+      if (index !== -1) {
+        this.conversationUpdateHandlers.splice(index, 1)
+      }
     }
   }
 

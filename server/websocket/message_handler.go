@@ -93,8 +93,9 @@ func (h *Hub) HandleMessage(messageType string, payload json.RawMessage, senderI
         }
 
         // Criar a mensagem no banco
+        messageID := utils.GenerateUUID()
         message := models.Message{
-            ID:             utils.GenerateUUID(),
+            ID:             messageID,
             ConversationID: messagePayload.ConversationID,
             SenderID:       senderID,
             CreatedAt:      time.Now(),
@@ -152,11 +153,15 @@ func (h *Hub) HandleMessage(messageType string, payload json.RawMessage, senderI
             return err
         }
 
-        log.Printf("Enviando broadcast para %d destinatários", len(recipientIDs))
+        log.Printf("Enviando broadcast para %d destinatários (mensagem ID: %s)",
+            len(recipientIDs), messageID)
+
+        // Enviar a mensagem apenas uma vez
         broadcastMessage := BroadcastMessage{
             Type:       "message",
             Recipients: recipientIDs,
             Payload:    payloadBytes,
+            MessageID:  messageID,
         }
 
         h.Broadcast <- broadcastMessage
@@ -166,6 +171,7 @@ func (h *Hub) HandleMessage(messageType string, payload json.RawMessage, senderI
             Type:       "conversation_update",
             Recipients: recipientIDs,
             Payload:    json.RawMessage(`{}`),
+            MessageID:  utils.GenerateUUID(),
         }
 
         h.Broadcast <- updateNotification
