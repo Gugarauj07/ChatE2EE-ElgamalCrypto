@@ -41,13 +41,32 @@ type BroadcastMessage struct {
     MessageID  string          // ID da mensagem para rastreamento
 }
 
+// Variável global para armazenar a instância do hub
+var globalHub *Hub
+var hubMutex sync.RWMutex
+
+// NewHub cria uma nova instância do Hub
 func NewHub() *Hub {
-    return &Hub{
+    hubMutex.Lock()
+    defer hubMutex.Unlock()
+
+    hub := &Hub{
         Clients:    make(map[string]*Client),
         Register:   make(chan *Client),
         Unregister: make(chan *Client),
         Broadcast:  make(chan BroadcastMessage),
     }
+
+    globalHub = hub
+    return hub
+}
+
+// GetHub retorna a instância global do hub
+func GetHub() *Hub {
+    hubMutex.RLock()
+    defer hubMutex.RUnlock()
+
+    return globalHub
 }
 
 func (h *Hub) Run() {

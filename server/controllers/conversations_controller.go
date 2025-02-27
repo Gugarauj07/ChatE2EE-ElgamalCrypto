@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"server/config"
 	"server/models"
 	"server/utils"
+	"server/websocket"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -274,6 +276,41 @@ func UpdateMessageStatus(c *gin.Context) {
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Mensagem não encontrada"})
 		return
+	}
+
+	// Buscar a mensagem para obter o ID da conversa e o remetente
+	var message models.Message
+	if err := config.DB.First(&message, "id = ?", messageID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar mensagem"})
+		return
+	}
+
+	// Buscar participantes da conversa para notificação
+	var participants []models.ConversationParticipant
+	if err := config.DB.Where("conversation_id = ?", message.ConversationID).Find(&participants).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar participantes"})
+		return
+	}
+
+	// Preparar lista de IDs de participantes para notificação
+	participantIDs := make([]string, 0, len(participants))
+	for _, p := range participants {
+		participantIDs = append(participantIDs, p.UserID)
+	}
+
+	// Notificar todos os participantes sobre a atualização da conversa
+	if len(participantIDs) > 0 {
+		go func() {
+			// Enviar notificação de atualização de conversa
+			updateNotification := websocket.BroadcastMessage{
+				Type:       "conversation_update",
+				Recipients: participantIDs,
+				Payload:    json.RawMessage(`{}`),
+				MessageID:  utils.GenerateUUID(),
+			}
+
+			websocket.GetHub().Broadcast <- updateNotification
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Status atualizado com sucesso"})

@@ -50,6 +50,12 @@ export default function Chat() {
             console.log(`Mensagem ${message.id} já existe, ignorando duplicata`);
             return prev;
           }
+
+          // Marcar a mensagem como lida se não for do usuário atual
+          if (message.senderId !== userId && message.id) {
+            markMessageAsRead(selectedConversation.id, message.id);
+          }
+
           return [...prev, message];
         });
       }
@@ -89,6 +95,9 @@ export default function Chat() {
 
       setSelectedConversation(conversation)
       setCurrentMessages(uniqueMessages)
+
+      // Marcar todas as mensagens não lidas como lidas
+      markAllMessagesAsRead(conversationId, uniqueMessages);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -101,6 +110,37 @@ export default function Chat() {
   const handleSelectConversation = (conversationId: string) => {
     loadConversationDetails(conversationId)
   }
+
+  const markAllMessagesAsRead = async (conversationId: string, messages: Message[]) => {
+    try {
+      // Filtrar mensagens não lidas que não são do usuário atual
+      const unreadMessages = messages.filter(
+        msg => msg.senderId !== userId && msg.status === 'SENT' && msg.id
+      );
+
+      // Marcar cada mensagem como lida
+      for (const message of unreadMessages) {
+        if (message.id) {
+          await markMessageAsRead(conversationId, message.id);
+        }
+      }
+
+      // Se houver mensagens marcadas como lidas, atualizar a lista de conversas
+      if (unreadMessages.length > 0) {
+        loadConversations();
+      }
+    } catch (error) {
+      console.error('Erro ao marcar mensagens como lidas:', error);
+    }
+  };
+
+  const markMessageAsRead = async (conversationId: string, messageId: string) => {
+    try {
+      await conversationService.markMessageAsRead(conversationId, messageId);
+    } catch (error) {
+      console.error('Erro ao marcar mensagem como lida:', error);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     try {
