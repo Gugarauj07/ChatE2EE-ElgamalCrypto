@@ -146,7 +146,11 @@ export default function Chat() {
     try {
       const date = new Date(dateString)
       if (isNaN(date.getTime())) return ''
-      return formatDistanceToNow(date, {
+
+      // Ajustar para o fuso horário local
+      const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+
+      return formatDistanceToNow(localDate, {
         locale: ptBR,
         addSuffix: true
       })

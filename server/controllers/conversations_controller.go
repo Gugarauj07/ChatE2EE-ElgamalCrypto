@@ -61,6 +61,7 @@ func ListConversations(c *gin.Context) {
 				WHERE msg.conversation_id = c.id
 				AND mrec.recipient_id = @user_id
 				AND mrec.status = 'SENT'
+				AND msg.sender_id != @user_id
 			) as unread_count,
 			datetime(COALESCE(m.created_at, c.created_at)) as updated_at
 		FROM conversations c
@@ -192,7 +193,7 @@ func SendMessage(c *gin.Context) {
 		ID:             utils.GenerateUUID(),
 		ConversationID: conversationID,
 		SenderID:       userID,
-		CreatedAt:      time.Now().Add(-4 * time.Hour),
+		CreatedAt:      time.Now(),
 	}
 
 	// Salvar a mensagem
@@ -209,7 +210,7 @@ func SendMessage(c *gin.Context) {
 			RecipientID:     recipientID,
 			EncryptedContent: encryptedContent,
 			Status:           "SENT",
-			StatusUpdatedAt:  time.Now().In(time.FixedZone("BRT", -3*3600)),
+			StatusUpdatedAt:  time.Now(),
 		}
 
 		if err := tx.Create(&recipient).Error; err != nil {
@@ -265,7 +266,7 @@ func UpdateMessageStatus(c *gin.Context) {
 		Where("message_id = ? AND recipient_id = ?", messageID, userID).
 		Updates(map[string]interface{}{
 			"status":             req.Status,
-			"status_updated_at":  time.Now().Add(-4 * time.Hour),
+			"status_updated_at":  time.Now(),
 		})
 
 	if result.Error != nil {
