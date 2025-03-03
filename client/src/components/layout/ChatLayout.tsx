@@ -19,7 +19,7 @@ export default function ChatLayout() {
             <Button
               variant="ghost"
               onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              className="flex items-center gap-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
             >
               <LogOut size={18} /> Sair
             </Button>
