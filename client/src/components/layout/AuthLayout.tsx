@@ -120,11 +120,11 @@ export default function AuthLayout() {
         options={options}
         className="absolute inset-0"
       />
-      <div className="container relative z-10 mx-auto px-4 py-8">
+      <div className="container relative z-10 mx-auto px-4 py-6 md:py-8">
         <div className="max-w-md mx-auto">
-          <h1 className="text-4xl font-bold text-center text-white mb-8 relative bg-white/10 backdrop-blur-sm p-4 rounded-lg">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-white mb-4 md:mb-8 relative bg-white/10 backdrop-blur-sm p-3 md:p-4 rounded-lg">
             <span className="inline-flex items-center">
-              <img src="chat-icon.svg" alt="Icon" className="w-8 h-8 mr-2" />
+              <img src="chat-icon.svg" alt="Icon" className="w-6 h-6 md:w-8 md:h-8 mr-2" />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
                 Chat E2E
               </span>

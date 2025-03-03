@@ -80,12 +80,16 @@ export default function AddContactDialog({ onSuccess }: AddContactDialogProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-3 h-10">
-          <UserPlus size={16} />
-          <span className="flex-1 text-left">Adicionar Contato</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full flex items-center justify-start gap-2 px-3 h-10"
+        >
+          <UserPlus size={16} className="flex-shrink-0" />
+          <span>Adicionar Contato</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Adicionar Novo Contato</DialogTitle>
           <DialogDescription>
@@ -109,7 +113,7 @@ export default function AddContactDialog({ onSuccess }: AddContactDialogProps) {
             </Button>
           </div>
 
-          <ScrollArea className="mt-4 max-h-[300px] pr-4">
+          <ScrollArea className="mt-4 max-h-[min(50vh,300px)] pr-4">
             <div className="space-y-2">
               {searchResults.map((user) => (
                 <div

@@ -96,12 +96,16 @@ export default function CreateGroupDialog({ onSuccess }: CreateGroupDialogProps)
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-3 h-10">
-          <Users size={16} />
-          <span className="flex-1 text-left">Novo Grupo</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full flex items-center justify-start gap-2 px-3 h-10"
+        >
+          <Users size={16} className="flex-shrink-0" />
+          <span>Novo Grupo</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Criar Novo Grupo</DialogTitle>
         </DialogHeader>

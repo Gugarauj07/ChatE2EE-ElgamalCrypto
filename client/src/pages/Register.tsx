@@ -150,17 +150,17 @@ export default function Register() {
   }
 
   return (
-    <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
+    <Card className="w-full max-w-md mx-auto bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
       <CardHeader className="space-y-1 pb-2">
-        <h2 className="text-2xl font-bold text-center text-white">Criar conta</h2>
-        <p className="text-sm text-gray-400 text-center">
+        <h2 className="text-xl md:text-2xl font-bold text-center text-white">Criar conta</h2>
+        <p className="text-xs md:text-sm text-gray-400 text-center">
           Preencha os dados abaixo para criar sua conta
         </p>
       </CardHeader>
-      <CardContent className="pb-4">
+      <CardContent className="pb-4 px-4 md:px-6">
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username" className="text-gray-200">Nome de usuário</Label>
+            <Label htmlFor="username" className="text-gray-200 text-sm md:text-base">Nome de usuário</Label>
             <Input
               id="username"
               type="text"
@@ -171,10 +171,10 @@ export default function Register() {
                 setUsernameErrors(validateUsername(e.target.value))
               }}
               required
-              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
+              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 text-sm md:text-base h-9 md:h-10"
             />
             {usernameErrors.length > 0 && (
-              <div className="text-sm text-red-400 mt-2">
+              <div className="text-xs md:text-sm text-red-400 mt-2">
                 <ul className="list-disc list-inside">
                   {usernameErrors.map((error, i) => (
                     <li key={i}>{error}</li>
@@ -184,7 +184,7 @@ export default function Register() {
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-gray-200">Senha</Label>
+            <Label htmlFor="password" className="text-gray-200 text-sm md:text-base">Senha</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -196,7 +196,7 @@ export default function Register() {
                   setPasswordErrors(validatePassword(e.target.value))
                 }}
                 required
-                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 pr-10 text-sm md:text-base h-9 md:h-10"
               />
               <Button
                 type="button"
@@ -209,7 +209,7 @@ export default function Register() {
               </Button>
             </div>
             {passwordErrors.length > 0 && (
-              <div className="text-sm text-red-400 mt-2">
+              <div className="text-xs md:text-sm text-red-400 mt-2">
                 <p>A senha deve conter:</p>
                 <ul className="list-disc list-inside">
                   {passwordErrors.map((error, i) => (
@@ -221,18 +221,18 @@ export default function Register() {
           </div>
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors text-sm md:text-base py-2 h-9 md:h-10"
             disabled={isLoading}
           >
             {isLoading ? "Processando..." : "Criar conta"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center border-t border-gray-800 pt-4">
+      <CardFooter className="flex justify-center border-t border-gray-800 pt-4 px-4 md:px-6">
         <Button
           variant="link"
           onClick={() => navigate('/login')}
-          className="text-blue-400 hover:text-blue-300"
+          className="text-blue-400 hover:text-blue-300 text-sm md:text-base"
         >
           Já tem uma conta? Faça login
         </Button>

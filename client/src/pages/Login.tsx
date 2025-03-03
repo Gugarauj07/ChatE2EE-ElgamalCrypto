@@ -93,19 +93,19 @@ export default function Login() {
   }
 
   return (
-    <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
+    <Card className="w-full max-w-md mx-auto bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
       <CardHeader className="space-y-1 pb-2">
-        <h2 className="text-2xl font-bold text-center text-white">
+        <h2 className="text-xl md:text-2xl font-bold text-center text-white">
           Entrar
         </h2>
-        <p className="text-sm text-gray-400 text-center">
+        <p className="text-xs md:text-sm text-gray-400 text-center">
           Digite suas credenciais para acessar sua conta
         </p>
       </CardHeader>
-      <CardContent className="pb-4">
+      <CardContent className="pb-4 px-4 md:px-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username" className="text-gray-200">Usuário</Label>
+            <Label htmlFor="username" className="text-gray-200 text-sm md:text-base">Usuário</Label>
             <Input
               id="username"
               type="text"
@@ -113,11 +113,11 @@ export default function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
+              className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 text-sm md:text-base h-9 md:h-10"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-gray-200">Senha</Label>
+            <Label htmlFor="password" className="text-gray-200 text-sm md:text-base">Senha</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -126,7 +126,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 pr-10 text-sm md:text-base h-9 md:h-10"
               />
               <Button
                 type="button"
@@ -141,18 +141,18 @@ export default function Login() {
           </div>
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors text-sm md:text-base py-2 h-9 md:h-10"
             disabled={isLoading}
           >
             {isLoading ? "Entrando..." : "Entrar"}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center border-t border-gray-800 pt-4">
+      <CardFooter className="flex justify-center border-t border-gray-800 pt-4 px-4 md:px-6">
         <Button
           variant="link"
           onClick={() => navigate('/register')}
-          className="text-blue-400 hover:text-blue-300"
+          className="text-blue-400 hover:text-blue-300 text-sm md:text-base"
         >
           Não tem uma conta? Registre-se
         </Button>
