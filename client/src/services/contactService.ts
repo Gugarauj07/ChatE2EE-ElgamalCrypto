@@ -33,7 +33,7 @@ export const contactService = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
-      body: JSON.stringify({ contact_id: contactId })
+      body: JSON.stringify({ contactId: contactId })
     })
 
     if (!response.ok) {

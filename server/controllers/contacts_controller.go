@@ -86,6 +86,7 @@ func AddContact(c *gin.Context) {
 
 	// Adicionar contato
 	newContact := models.Contact{
+		ID:        utils.GenerateUUID(),
 		UserID:    userID,
 		ContactID: req.ContactID,
 		AddedAt:   time.Now(),
@@ -121,11 +122,13 @@ func AddContact(c *gin.Context) {
 		// Adicionar participantes
 		participants := []models.ConversationParticipant{
 			{
+				ID:             utils.GenerateUUID(),
 				ConversationID: conversation.ID,
 				UserID:         userID,
 				JoinedAt:       time.Now(),
 			},
 			{
+				ID:             utils.GenerateUUID(),
 				ConversationID: conversation.ID,
 				UserID:         req.ContactID,
 				JoinedAt:       time.Now(),
