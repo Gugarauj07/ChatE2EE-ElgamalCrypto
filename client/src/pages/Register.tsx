@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { authService } from '@/services/authService'
-import { decryptPrivateKey } from '@/utils/cryptoUtils'
+import { keyGenService } from '@/services/keyGenService'
 import {
   Card,
   CardHeader,
@@ -26,6 +26,15 @@ export default function Register() {
   const [usernameErrors, setUsernameErrors] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [step, setStep] = useState<'form' | 'generating' | 'submitting'>('form')
+
+  // Inicia o processo de geração de chaves quando o componente é montado
+  useEffect(() => {
+    // Limpar o worker quando o componente for desmontado
+    return () => {
+      keyGenService.terminate();
+    };
+  }, []);
 
   // Função de validação de senha
   const validatePassword = (password: string) => {
@@ -65,7 +74,9 @@ export default function Register() {
     if (isLoading) return
 
     try {
+      // Mostrar loading imediatamente
       setIsLoading(true)
+
       // Validar senha e username antes de prosseguir
       const passwordErrs = validatePassword(password)
       const usernameErrs = validateUsername(username)
@@ -73,17 +84,26 @@ export default function Register() {
       if (passwordErrs.length > 0 || usernameErrs.length > 0) {
         setPasswordErrors(passwordErrs)
         setUsernameErrors(usernameErrs)
+        setIsLoading(false) // Desliga o loading se houver erros de validação
         return
       }
 
-      // Registrar via backend personalizado
-      const response = await authService.register(username, password)
+      // Alterar para o passo de geração de chaves
+      setStep('generating');
 
-      // Descriptografar a chave privada
-      const privateKey = await decryptPrivateKey(
-        response.encryptedPrivateKey,
-        password
-      )
+      // Gerar chaves em segundo plano usando Web Worker
+      const { publicKey, privateKey, encryptedPrivateKey } = await keyGenService.generateKeysAsync(password);
+
+      // Alterar para o passo de submissão ao servidor
+      setStep('submitting');
+
+      // Registrar via backend personalizado
+      const response = await authService.registerWithKeys(
+        username,
+        password,
+        publicKey,
+        encryptedPrivateKey
+      );
 
       // Atualizar o contexto com as informações do usuário
       await setAuthState(
@@ -105,16 +125,25 @@ export default function Register() {
         title: "Erro no registro",
         description: error instanceof Error ? error.message : "Tente novamente mais tarde."
       })
-    } finally {
-      setIsLoading(false)
+      setIsLoading(false) // Garantir que o loading seja desligado em caso de erro
+      setStep('form');
     }
   }
 
+  // Renderiza a tela de loading apropriada dependendo do passo atual
   if (isLoading) {
     return (
       <Card className="w-full bg-gray-900/70 backdrop-blur-sm border-gray-800 shadow-xl">
         <CardContent>
-          <EncryptedLoading text="Registrando" />
+          {step === 'generating' && (
+            <EncryptedLoading text="Gerando chaves" />
+          )}
+          {step === 'submitting' && (
+            <EncryptedLoading text="Registrando" />
+          )}
+          {step === 'form' && (
+            <EncryptedLoading text="Processando" />
+          )}
         </CardContent>
       </Card>
     )
@@ -195,7 +224,7 @@ export default function Register() {
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
             disabled={isLoading}
           >
-            {isLoading ? "Registrando..." : "Criar conta"}
+            {isLoading ? "Processando..." : "Criar conta"}
           </Button>
         </form>
       </CardContent>

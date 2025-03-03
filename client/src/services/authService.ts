@@ -45,6 +45,31 @@ export const authService = {
     return await response.json() as AuthResponse
   },
 
+  async registerWithKeys(
+    username: string,
+    password: string,
+    publicKey: ElGamal['publicKey'],
+    encryptedPrivateKey: string
+  ) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        password,
+        publicKey,
+        encryptedPrivateKey
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Erro no registro')
+    }
+
+    return await response.json() as AuthResponse
+  },
+
   async login(username: string, password: string) {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',

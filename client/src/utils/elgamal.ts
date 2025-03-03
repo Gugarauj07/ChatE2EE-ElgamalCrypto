@@ -1,6 +1,22 @@
 // Importa o módulo crypto do Node.js se estiver em um ambiente de servidor
 const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
-const crypto = isNode ? require('crypto') : window.crypto;
+// Verifica se estamos em um ambiente de navegador ou Web Worker
+const isBrowser = typeof window !== 'undefined';
+const isWorker = typeof self !== 'undefined' && typeof window === 'undefined';
+
+// Obtém a API de criptografia apropriada para o ambiente
+let cryptoApi;
+if (isNode) {
+  cryptoApi = require('crypto');
+} else if (isBrowser) {
+  cryptoApi = window.crypto;
+} else if (isWorker) {
+  cryptoApi = self.crypto;
+} else {
+  throw new Error('Ambiente não suportado: crypto API não disponível');
+}
+
+const crypto = cryptoApi;
 
 export interface PublicKey {
   p: string;

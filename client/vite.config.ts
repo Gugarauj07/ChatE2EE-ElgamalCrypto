@@ -1,6 +1,7 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -16,5 +17,8 @@ export default defineConfig({
         secure: false,
       },
     },
+  },
+  worker: {
+    format: 'es', // Define o formato do módulo como ES modules
   },
 })
