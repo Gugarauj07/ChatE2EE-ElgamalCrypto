@@ -15,7 +15,7 @@ import (
 
 // RegisterRequest representa a payload para registro de usuário
 type RegisterRequest struct {
-	Username            string              `json:"username" binding:"required,alphanum"`
+	Username            string              `json:"username" binding:"required"`
 	Password            string              `json:"password" binding:"required"`
 	EncryptedPrivateKey string              `json:"encryptedPrivateKey" binding:"required"`
 	PublicKey           models.PublicKeyData `json:"publicKey" binding:"required"`
