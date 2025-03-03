@@ -4,6 +4,10 @@
 
 O **Chat E2EE** é uma aplicação de mensagens com criptografia de ponta a ponta que prioriza a privacidade e segurança dos usuários. A aplicação utiliza criptografia ElGamal para garantir que apenas os usuários envolvidos nas conversas possam acessar o conteúdo das mensagens.
 
+![asymmetric-encryption-infographic](asymmetric-encryption-infographic.avif)
+
+![System overview](ChatE2E.mp4)
+
 ## Arquitetura
 
 ### Diagrama de Entidade Relacionamento
