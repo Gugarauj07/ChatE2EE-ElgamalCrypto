@@ -1,7 +1,6 @@
 import { Message } from '@/types/chat'
 import { ElGamal } from '@/utils/elgamal'
 
-type MessageHandler = (message: Message) => void
 type ConversationUpdateHandler = () => void
 
 export class WebSocketService {
